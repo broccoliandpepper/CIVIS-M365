@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment and secrets
+.env
+backend/.env
+*.key
+*.pem
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Runtime / logs
+.runtime/
+logs/
+*.log
+
+# Databases and generated backups
+*.db
+data/db/
+data/backups/
+
+# Sensitive sample data
+backend/sample_data/*
+!backend/sample_data/README_SENSITIVE.md
+Context/Sample/
+
+# Build artifacts
+node_modules/
+coverage/
