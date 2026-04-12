@@ -2,6 +2,15 @@ import { state } from "./state.js";
 
 const API = "/api/v1";
 
+function toQuery(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    query.set(key, String(value));
+  });
+  return query.toString();
+}
+
 async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (state.token) {
@@ -43,24 +52,28 @@ export function apiKpis(days = 30) {
   return request(`/dashboard/kpis?days=${days}`);
 }
 
-export function apiSignins(page = 1, pageSize = 25) {
-  return request(`/query/signins?page=${page}&page_size=${pageSize}`);
+export function apiSignins(page = 1, pageSize = 25, filters = {}) {
+  const query = toQuery({ page, page_size: pageSize, ...filters });
+  return request(`/query/signins?${query}`);
 }
 
 export function apiUnknownUsers(limit = 20) {
   return request(`/alerts/unknown-users?limit=${limit}`);
 }
 
-export function apiRiskyUsers(page = 1, pageSize = 25) {
-  return request(`/query/risky-users?page=${page}&page_size=${pageSize}`);
+export function apiRiskyUsers(page = 1, pageSize = 25, filters = {}) {
+  const query = toQuery({ page, page_size: pageSize, ...filters });
+  return request(`/query/risky-users?${query}`);
 }
 
-export function apiIncidents(page = 1, pageSize = 25) {
-  return request(`/query/incidents?page=${page}&page_size=${pageSize}`);
+export function apiIncidents(page = 1, pageSize = 25, filters = {}) {
+  const query = toQuery({ page, page_size: pageSize, ...filters });
+  return request(`/query/incidents?${query}`);
 }
 
-export function apiAuditLogs(page = 1, pageSize = 25) {
-  return request(`/query/audit-logs?page=${page}&page_size=${pageSize}`);
+export function apiAuditLogs(page = 1, pageSize = 25, filters = {}) {
+  const query = toQuery({ page, page_size: pageSize, ...filters });
+  return request(`/query/audit-logs?${query}`);
 }
 
 export function apiSocSummary(period = "last_7_days") {

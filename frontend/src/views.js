@@ -158,9 +158,25 @@ export function renderSignins(data) {
     </tr>
   `).join("");
 
+  const filters = data?.filters || {};
+
   return `
     <section class="grid">
       <h2>SignIns</h2>
+      <article class="card">
+        <h3>Filtres</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px;">
+          <input class="input" name="signins-user_principal" placeholder="User principal" value="${esc(filters.user_principal || "")}">
+          <select class="input" name="signins-status">
+            <option value="">Status (tous)</option>
+            <option value="success" ${filters.status === "success" ? "selected" : ""}>Success</option>
+            <option value="failure" ${filters.status === "failure" ? "selected" : ""}>Failure</option>
+          </select>
+          <input class="input" type="date" name="signins-date_from" value="${esc(filters.date_from || "")}">
+          <input class="input" type="date" name="signins-date_to" value="${esc(filters.date_to || "")}">
+        </div>
+        <button class="btn" data-apply-filter="signins">Appliquer</button>
+      </article>
       ${tableOrEmpty(["Date", "User", "Display Name", "IP", "Status", "App"], rows, "Aucune donnee")}
       ${pager(data?.page, data?.total_pages, "signins")}
     </section>
@@ -195,9 +211,24 @@ export function renderRiskyUsers(data) {
     </tr>
   `).join("");
 
+  const filters = data?.filters || {};
+
   return `
     <section class="grid">
       <h2>Risky Users</h2>
+      <article class="card">
+        <h3>Filtres</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px;">
+          <input class="input" name="risky-user_principal" placeholder="User principal" value="${esc(filters.user_principal || "")}">
+          <select class="input" name="risky-risk_level">
+            <option value="">Risk level (tous)</option>
+            <option value="high" ${filters.risk_level === "high" ? "selected" : ""}>high</option>
+            <option value="medium" ${filters.risk_level === "medium" ? "selected" : ""}>medium</option>
+            <option value="low" ${filters.risk_level === "low" ? "selected" : ""}>low</option>
+          </select>
+        </div>
+        <button class="btn" data-apply-filter="risky">Appliquer</button>
+      </article>
       ${tableOrEmpty(["Date", "User", "Risk Level", "Risk State", "Detection"], rows, "Aucune donnee")}
       ${pager(data?.page, data?.total_pages, "risky")}
     </section>
@@ -215,9 +246,25 @@ export function renderIncidents(data) {
     </tr>
   `).join("");
 
+  const filters = data?.filters || {};
+
   return `
     <section class="grid">
       <h2>Incidents</h2>
+      <article class="card">
+        <h3>Filtres</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px;">
+          <input class="input" name="incidents-title_contains" placeholder="Titre contient" value="${esc(filters.title_contains || "")}">
+          <select class="input" name="incidents-severity">
+            <option value="">Severity (tous)</option>
+            <option value="high" ${filters.severity === "high" ? "selected" : ""}>high</option>
+            <option value="medium" ${filters.severity === "medium" ? "selected" : ""}>medium</option>
+            <option value="low" ${filters.severity === "low" ? "selected" : ""}>low</option>
+          </select>
+          <input class="input" name="incidents-status" placeholder="Status" value="${esc(filters.status || "")}">
+        </div>
+        <button class="btn" data-apply-filter="incidents">Appliquer</button>
+      </article>
       ${tableOrEmpty(["Date", "Incident", "Titre", "Severite", "Status"], rows, "Aucune donnee")}
       ${pager(data?.page, data?.total_pages, "incidents")}
     </section>
@@ -235,9 +282,20 @@ export function renderAuditLogs(data) {
     </tr>
   `).join("");
 
+  const filters = data?.filters || {};
+
   return `
     <section class="grid">
       <h2>Audit Logs</h2>
+      <article class="card">
+        <h3>Filtres</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px;">
+          <input class="input" name="audit-user_principal" placeholder="User principal" value="${esc(filters.user_principal || "")}">
+          <input class="input" name="audit-operation" placeholder="Operation" value="${esc(filters.operation || "")}">
+          <input class="input" name="audit-workload" placeholder="Workload" value="${esc(filters.workload || "")}">
+        </div>
+        <button class="btn" data-apply-filter="audit">Appliquer</button>
+      </article>
       ${tableOrEmpty(["Date", "User", "Operation", "Workload", "Resultat"], rows, "Aucune donnee")}
       ${pager(data?.page, data?.total_pages, "audit")}
     </section>

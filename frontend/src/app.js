@@ -59,6 +59,26 @@ function wirePager(content) {
   });
 }
 
+function wireFilters(content) {
+  content.querySelectorAll("[data-apply-filter]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const view = btn.dataset.applyFilter;
+      if (!view || !state.filters[view]) return;
+
+      Object.keys(state.filters[view]).forEach((key) => {
+        const input = content.querySelector(`[name="${view}-${key}"]`);
+        state.filters[view][key] = input ? input.value : "";
+      });
+
+      if (state.pages[view] !== undefined) {
+        state.pages[view] = 1;
+      }
+
+      await renderContent();
+    });
+  });
+}
+
 async function wireIngestion(content) {
   content.querySelectorAll("[data-upload]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -176,30 +196,34 @@ async function renderContent() {
     }
 
     if (state.activeView === "signins") {
-      const data = await apiSignins(state.pages.signins, 30);
-      content.innerHTML = renderSignins(data);
+      const data = await apiSignins(state.pages.signins, 30, state.filters.signins);
+      content.innerHTML = renderSignins({ ...data, filters: state.filters.signins });
       wirePager(content);
+      wireFilters(content);
       return;
     }
 
     if (state.activeView === "risky") {
-      const data = await apiRiskyUsers(state.pages.risky, 30);
-      content.innerHTML = renderRiskyUsers(data);
+      const data = await apiRiskyUsers(state.pages.risky, 30, state.filters.risky);
+      content.innerHTML = renderRiskyUsers({ ...data, filters: state.filters.risky });
       wirePager(content);
+      wireFilters(content);
       return;
     }
 
     if (state.activeView === "incidents") {
-      const data = await apiIncidents(state.pages.incidents, 30);
-      content.innerHTML = renderIncidents(data);
+      const data = await apiIncidents(state.pages.incidents, 30, state.filters.incidents);
+      content.innerHTML = renderIncidents({ ...data, filters: state.filters.incidents });
       wirePager(content);
+      wireFilters(content);
       return;
     }
 
     if (state.activeView === "audit") {
-      const data = await apiAuditLogs(state.pages.audit, 30);
-      content.innerHTML = renderAuditLogs(data);
+      const data = await apiAuditLogs(state.pages.audit, 30, state.filters.audit);
+      content.innerHTML = renderAuditLogs({ ...data, filters: state.filters.audit });
       wirePager(content);
+      wireFilters(content);
       return;
     }
 

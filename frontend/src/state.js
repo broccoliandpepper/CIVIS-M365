@@ -9,6 +9,28 @@ export const state = {
     audit: 1,
     soc: 1,
   },
+  filters: {
+    signins: {
+      user_principal: "",
+      status: "",
+      date_from: "",
+      date_to: "",
+    },
+    risky: {
+      user_principal: "",
+      risk_level: "",
+    },
+    incidents: {
+      severity: "",
+      status: "",
+      title_contains: "",
+    },
+    audit: {
+      user_principal: "",
+      operation: "",
+      workload: "",
+    },
+  },
 };
 
 export function setToken(token) {
