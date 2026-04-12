@@ -62,7 +62,7 @@ export function renderAppShell(user) {
   const username = esc(user?.username || "");
   const role = esc(user?.role || "");
   const adminNav = user?.role === "admin"
-    ? `<button class="nav-btn" data-view="admin">Admin</button>`
+    ? `<button class="nav-btn" data-view="lifecycle">Lifecycle</button><button class="nav-btn" data-view="admin">Admin</button>`
     : "";
   return `
     <div class="app-shell">
@@ -86,6 +86,76 @@ export function renderAppShell(user) {
       </nav>
       <main class="content" id="content"></main>
     </div>
+  `;
+}
+
+export function renderLifecycle(data, currentUser = null, message = "") {
+  const status = data?.status || {};
+  const backups = data?.backups || [];
+  const logs = data?.logs || [];
+  const inspected = data?.inspectedBackup || null;
+  const canManage = currentUser?.role === "admin";
+
+  const backupRows = backups.map((item) => `
+    <tr>
+      <td>${esc(item.backup_id)}</td>
+      <td>${esc(item.created_at)}</td>
+      <td>${esc(item.status)}</td>
+      <td>${esc(item.record_counts?.total ?? "")}</td>
+      <td>${esc(item.file_size_bytes)}</td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn secondary" data-inspect-backup="${esc(item.backup_id)}">Inspect</button>
+          ${canManage ? `<button class="btn secondary" data-verify-backup="${esc(item.backup_id)}">Verify</button>` : ""}
+          ${canManage ? `<button class="btn secondary" data-restore-backup="${esc(item.backup_id)}">Restore</button>` : ""}
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  const logRows = logs.map((item) => `
+    <tr>
+      <td>${esc(item.started_at)}</td>
+      <td>${esc(item.operation)}</td>
+      <td>${esc(item.status)}</td>
+      <td>${esc(item.records_processed)}</td>
+      <td>${esc(item.error_message || "")}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <section class="grid">
+      <h2>Lifecycle & Backups</h2>
+      ${message ? `<div class="notice success">${esc(message)}</div>` : ""}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${canManage ? `<button class="btn" id="create-backup-btn">Creer un backup</button>` : ""}
+        <button class="btn secondary" id="refresh-lifecycle-btn">Rafraichir</button>
+      </div>
+      <div class="grid kpi-grid">
+        <article class="card"><div>HOT records</div><div class="kpi-value">${esc(status.hot?.records ?? "-")}</div></article>
+        <article class="card"><div>Risky users</div><div class="kpi-value">${esc(status.hot?.risky_users ?? "-")}</div></article>
+        <article class="card"><div>Incidents</div><div class="kpi-value">${esc(status.hot?.incidents ?? "-")}</div></article>
+        <article class="card"><div>Archive records</div><div class="kpi-value">${esc(status.archive?.records ?? "-")}</div></article>
+      </div>
+      <article class="card">
+        <h3>Backups</h3>
+        ${tableOrEmpty(["Backup ID", "Created At", "Status", "Records", "Size", "Action"], backupRows, "Aucun backup")}
+      </article>
+      <article class="card">
+        <h3>Backup Inspector</h3>
+        ${inspected ? tableOrEmpty(["File", "Size", "Compressed"], (inspected.entries || []).map((entry) => `
+          <tr>
+            <td>${esc(entry.name)}</td>
+            <td>${esc(entry.size)}</td>
+            <td>${esc(entry.compressed_size)}</td>
+          </tr>
+        `).join(""), "Aucune entree") : `<div class="subtitle">Selectionne un backup via Inspect pour voir son contenu.</div>`}
+      </article>
+      <article class="card">
+        <h3>Lifecycle Logs</h3>
+        ${tableOrEmpty(["Started At", "Operation", "Status", "Records", "Error"], logRows, "Aucun log")}
+      </article>
+    </section>
   `;
 }
 
@@ -183,19 +253,32 @@ export function renderSignins(data) {
   `;
 }
 
-export function renderAlerts(items) {
+export function renderAlerts(items, currentUser = null, message = "") {
+  const canReview = currentUser?.role === "admin";
   const rows = (items || []).map((a) => `
     <tr>
       <td>${esc(a.user_principal || a.user || "")}</td>
+      <td>${esc(a.display_name || "")}</td>
       <td>${esc(a.first_seen || a.timestamp || "")}</td>
+      <td>${esc(a.last_seen || "")}</td>
+      <td>${esc(a.event_count || "")}</td>
       <td>${esc(a.status || "pending")}</td>
+      <td>
+        ${canReview && (a.status || "pending") === "pending" ? `
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn secondary" data-alert-action="approve" data-alert-user="${esc(a.user_principal)}">Approve</button>
+            <button class="btn secondary" data-alert-action="reject" data-alert-user="${esc(a.user_principal)}">Reject</button>
+          </div>
+        ` : ""}
+      </td>
     </tr>
   `).join("");
 
   return `
     <section class="grid">
       <h2>Alertes Nouveaux Utilisateurs</h2>
-      ${tableOrEmpty(["Utilisateur", "First Seen", "Status"], rows, "Aucune alerte")}
+      ${message ? `<div class="notice success">${esc(message)}</div>` : ""}
+      ${tableOrEmpty(["Utilisateur", "Display Name", "First Seen", "Last Seen", "Events", "Status", "Actions"], rows, "Aucune alerte")}
     </section>
   `;
 }
@@ -302,7 +385,7 @@ export function renderAuditLogs(data) {
   `;
 }
 
-export function renderSoc(summary, anomalies, message = "") {
+export function renderSoc(summary, anomalies, filters = {}, message = "") {
   const cards = [
     ["Anomalies", summary?.total_anomalies],
     ["Critiques", summary?.critical_count],
@@ -323,6 +406,36 @@ export function renderSoc(summary, anomalies, message = "") {
   return `
     <section class="grid">
       <h2>SOC</h2>
+      <article class="card">
+        <h3>Filtres d analyse</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px;">
+          <select class="input" name="soc-period">
+            <option value="today" ${filters.period === "today" ? "selected" : ""}>today</option>
+            <option value="last_7_days" ${filters.period === "last_7_days" ? "selected" : ""}>last_7_days</option>
+            <option value="last_30_days" ${filters.period === "last_30_days" ? "selected" : ""}>last_30_days</option>
+            <option value="custom" ${filters.period === "custom" ? "selected" : ""}>custom</option>
+          </select>
+          <input class="input" type="date" name="soc-start_date" value="${esc(filters.start_date || "")}">
+          <input class="input" type="date" name="soc-end_date" value="${esc(filters.end_date || "")}">
+          <input class="input" name="soc-event_type" placeholder="Event type" value="${esc(filters.event_type || "")}">
+          <select class="input" name="soc-severity">
+            <option value="">Severity (toutes)</option>
+            <option value="critical" ${filters.severity === "critical" ? "selected" : ""}>critical</option>
+            <option value="high" ${filters.severity === "high" ? "selected" : ""}>high</option>
+            <option value="medium" ${filters.severity === "medium" ? "selected" : ""}>medium</option>
+            <option value="low" ${filters.severity === "low" ? "selected" : ""}>low</option>
+          </select>
+          <select class="input" name="soc-status">
+            <option value="open" ${filters.status === "open" ? "selected" : ""}>open</option>
+            <option value="resolved" ${filters.status === "resolved" ? "selected" : ""}>resolved</option>
+            <option value="" ${filters.status === "" ? "selected" : ""}>all</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" data-apply-filter="soc">Appliquer</button>
+          <button class="btn secondary" id="soc-export-html">Exporter HTML</button>
+        </div>
+      </article>
       <div>
         <button class="btn" id="soc-run-analysis">Lancer analyse</button>
       </div>

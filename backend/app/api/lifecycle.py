@@ -64,6 +64,26 @@ async def list_lifecycle_logs(
     }
 
 
+@router.get("/backup/{backup_id}/contents")
+async def inspect_backup(
+    backup_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_config)
+):
+    """Inspecte le contenu d'un backup."""
+    return LifecycleService.inspect_backup(db, backup_id)
+
+
+@router.post("/backup/{backup_id}/restore")
+async def restore_backup(
+    backup_id: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_config)
+):
+    """Restaure un backup dans un dossier isolé."""
+    return LifecycleService.restore_backup(db, backup_id, restored_by=current_user.username)
+
+
 @router.post("/backup/{backup_id}/verify")
 async def verify_backup(
     backup_id: str,

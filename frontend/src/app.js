@@ -1,31 +1,42 @@
 import {
+  apiApproveUnknownUser,
+  apiAuditLogs,
+  apiClearData,
+  apiCreateBackup,
   apiHealth,
   apiIncidents,
-  apiAuditLogs,
+  apiInspectBackup,
   apiKpis,
+  apiLifecycleBackups,
+  apiLifecycleLogs,
+  apiLifecycleStatus,
   apiLogin,
   apiMe,
+  apiRejectUnknownUser,
+  apiResetPassword,
+  apiRestoreBackup,
   apiRiskyUsers,
+  apiSignins,
   apiSocAnomalies,
   apiSocAnalyze,
+  apiSocExportHtml,
   apiSocSummary,
-  apiSignins,
-  apiResetPassword,
   apiToggleUser,
   apiUnknownUsers,
-  apiUsers,
-  apiClearData,
   apiUpload,
+  apiUsers,
+  apiVerifyBackup,
 } from "./api.js";
 import { setToken, state } from "./state.js";
 import {
-  renderAlerts,
   renderAdmin,
+  renderAlerts,
   renderAppShell,
   renderAuditLogs,
   renderDashboard,
   renderIncidents,
   renderIngestion,
+  renderLifecycle,
   renderLogin,
   renderRiskyUsers,
   renderSignins,
@@ -90,10 +101,10 @@ async function wireIngestion(content) {
         await bindAppHandlers();
         return;
       }
+
       try {
         const response = await apiUpload(btn.dataset.upload, file);
-        const msg = response?.message || "Upload termine";
-        content.innerHTML = renderIngestion(msg);
+        content.innerHTML = renderIngestion(response?.message || "Upload termine");
         await bindAppHandlers();
       } catch (error) {
         content.innerHTML = `${renderIngestion()}<div class="notice error">${error.message}</div>`;
@@ -104,22 +115,38 @@ async function wireIngestion(content) {
 }
 
 async function wireSoc(content) {
-  const runBtn = document.getElementById("soc-run-analysis");
-  if (!runBtn) return;
-
-  runBtn.addEventListener("click", async () => {
+  document.getElementById("soc-run-analysis")?.addEventListener("click", async () => {
     try {
-      const result = await apiSocAnalyze("last_7_days");
-      const summary = await apiSocSummary("last_7_days");
-      const anomalies = await apiSocAnomalies("last_7_days", 1, 50);
-      content.innerHTML = renderSoc(summary, anomalies, result?.message || "Analyse terminee");
+      const result = await apiSocAnalyze(state.filters.soc);
+      const summary = await apiSocSummary(state.filters.soc);
+      const anomalies = await apiSocAnomalies(state.filters.soc, state.pages.soc, 50);
+      content.innerHTML = renderSoc(summary, anomalies, state.filters.soc, result?.message || "Analyse terminee");
       await bindAppHandlers();
     } catch (error) {
-      content.innerHTML = `${renderSoc({}, [])}<div class="notice error">${error.message}</div>`;
+      content.innerHTML = `${renderSoc({}, [], state.filters.soc)}<div class="notice error">${error.message}</div>`;
       await bindAppHandlers();
     }
   });
 
+  document.getElementById("soc-export-html")?.addEventListener("click", async () => {
+    try {
+      const response = await apiSocExportHtml(state.filters.soc);
+      const html = response?.html || "";
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `soc-report-${state.filters.soc.period || "period"}.html`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
+    }
+  });
+
+  wireFilters(content);
   wirePager(content);
 }
 
@@ -127,10 +154,9 @@ async function wireAdmin(content) {
   content.querySelectorAll("[data-clear]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
-        const source = btn.dataset.clear;
-        const result = await apiClearData(source);
+        const result = await apiClearData(btn.dataset.clear);
         const users = await apiUsers();
-        content.innerHTML = renderAdmin(users, `${source}: ${result.deleted} lignes supprimees`, state.user);
+        content.innerHTML = renderAdmin(users, `${btn.dataset.clear}: ${result.deleted} lignes supprimees`, state.user);
         await bindAppHandlers();
       } catch (error) {
         const users = await apiUsers().catch(() => []);
@@ -143,9 +169,7 @@ async function wireAdmin(content) {
   content.querySelectorAll("[data-toggle-user]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
-        const userId = Number(btn.dataset.toggleUser);
-        const isActive = btn.dataset.toggleTarget === "true";
-        await apiToggleUser(userId, isActive);
+        await apiToggleUser(Number(btn.dataset.toggleUser), btn.dataset.toggleTarget === "true");
         const users = await apiUsers();
         content.innerHTML = renderAdmin(users, "Utilisateur mis a jour", state.user);
         await bindAppHandlers();
@@ -159,12 +183,11 @@ async function wireAdmin(content) {
 
   content.querySelectorAll("[data-reset-user]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const userId = Number(btn.dataset.resetUser);
       const newPassword = window.prompt("Nouveau mot de passe (min 12 caracteres)");
       if (!newPassword) return;
 
       try {
-        await apiResetPassword(userId, newPassword);
+        await apiResetPassword(Number(btn.dataset.resetUser), newPassword);
         const users = await apiUsers();
         content.innerHTML = renderAdmin(users, "Mot de passe reinitialise", state.user);
         await bindAppHandlers();
@@ -172,6 +195,94 @@ async function wireAdmin(content) {
         const users = await apiUsers().catch(() => []);
         content.innerHTML = `${renderAdmin(users, "", state.user)}<div class="notice error">${error.message}</div>`;
         await bindAppHandlers();
+      }
+    });
+  });
+}
+
+async function wireAlerts(content) {
+  content.querySelectorAll("[data-alert-action]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const action = btn.dataset.alertAction;
+      const userPrincipal = btn.dataset.alertUser;
+      if (!action || !userPrincipal) return;
+
+      const notes = window.prompt(`Notes pour ${action} ${userPrincipal}`, "") || "";
+
+      try {
+        if (action === "approve") {
+          await apiApproveUnknownUser(userPrincipal, notes);
+        } else {
+          await apiRejectUnknownUser(userPrincipal, notes);
+        }
+
+        const data = await apiUnknownUsers(50);
+        content.innerHTML = renderAlerts(data.items || [], state.user, `Utilisateur ${action === "approve" ? "approuve" : "rejete"}`);
+        await bindAppHandlers();
+      } catch (error) {
+        const data = await apiUnknownUsers(50).catch(() => ({ items: [] }));
+        content.innerHTML = `${renderAlerts(data.items || [], state.user)}<div class="notice error">${error.message}</div>`;
+        await bindAppHandlers();
+      }
+    });
+  });
+}
+
+async function wireLifecycle(content) {
+  const reloadLifecycle = async (message = "", inspectedBackup = null) => {
+    const status = await apiLifecycleStatus();
+    const backups = await apiLifecycleBackups(20);
+    const logs = await apiLifecycleLogs(20);
+    content.innerHTML = renderLifecycle(
+      { status, backups: backups.backups || [], logs: logs.logs || [], inspectedBackup },
+      state.user,
+      message
+    );
+    await bindAppHandlers();
+  };
+
+  document.getElementById("refresh-lifecycle-btn")?.addEventListener("click", async () => {
+    await reloadLifecycle();
+  });
+
+  document.getElementById("create-backup-btn")?.addEventListener("click", async () => {
+    try {
+      const result = await apiCreateBackup();
+      await reloadLifecycle(`Backup ${result.status}`);
+    } catch (error) {
+      content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
+    }
+  });
+
+  content.querySelectorAll("[data-inspect-backup]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        const inspected = await apiInspectBackup(btn.dataset.inspectBackup);
+        await reloadLifecycle(`Inspection: ${btn.dataset.inspectBackup}`, inspected);
+      } catch (error) {
+        content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
+      }
+    });
+  });
+
+  content.querySelectorAll("[data-verify-backup]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        const result = await apiVerifyBackup(btn.dataset.verifyBackup);
+        await reloadLifecycle(`Verification: ${result.status}`);
+      } catch (error) {
+        content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
+      }
+    });
+  });
+
+  content.querySelectorAll("[data-restore-backup]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        const result = await apiRestoreBackup(btn.dataset.restoreBackup);
+        await reloadLifecycle(`Restauration: ${result.status} (${result.restore_path || btn.dataset.restoreBackup})`);
+      } catch (error) {
+        content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
       }
     });
   });
@@ -228,16 +339,30 @@ async function renderContent() {
     }
 
     if (state.activeView === "soc") {
-      const summary = await apiSocSummary("last_7_days");
-      const anomalies = await apiSocAnomalies("last_7_days", state.pages.soc, 50);
-      content.innerHTML = renderSoc(summary, anomalies);
+      const summary = await apiSocSummary(state.filters.soc);
+      const anomalies = await apiSocAnomalies(state.filters.soc, state.pages.soc, 50);
+      content.innerHTML = renderSoc(summary, anomalies, state.filters.soc);
       await wireSoc(content);
       return;
     }
 
     if (state.activeView === "alerts") {
       const data = await apiUnknownUsers(50);
-      content.innerHTML = renderAlerts(data.items || data || []);
+      content.innerHTML = renderAlerts(data.items || [], state.user);
+      await wireAlerts(content);
+      return;
+    }
+
+    if (state.activeView === "lifecycle") {
+      if (state.user?.role !== "admin") {
+        content.innerHTML = `<div class="notice error">Section reservee aux admins</div>`;
+        return;
+      }
+      const status = await apiLifecycleStatus();
+      const backups = await apiLifecycleBackups(20);
+      const logs = await apiLifecycleLogs(20);
+      content.innerHTML = renderLifecycle({ status, backups: backups.backups || [], logs: logs.logs || [] }, state.user);
+      await wireLifecycle(content);
       return;
     }
 

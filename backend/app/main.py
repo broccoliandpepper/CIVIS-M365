@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
     from app.models.truth_list import TruthListUser
     from app.models.ingestion_logs import IngestionLog
     from app.models.audit_logs_m365 import M365AuditLog
+    from app.models.new_user_review import NewUserReview
     from app.models.soc_analysis import SOCAnomaly, SOCMetric
 
     init_db_on_startup()

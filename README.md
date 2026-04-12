@@ -273,6 +273,9 @@ Fonctionnalités UI V2 déjà migrées :
 - Navigation modulaire: Dashboard, Ingestion, SignIns, Risky, Incidents, Audit, SOC, Alertes, Admin
 - Pagination: SignIns, Risky, Incidents, Audit, SOC anomalies
 - Actions admin: clear-data, activation/desactivation utilisateur, reset password
+- Filtres avancés: SignIns, Risky, Incidents, Audit, SOC
+- Export SOC: rapport HTML téléchargeable depuis l'interface
+- Workflow alertes: approve/reject des nouveaux utilisateurs hors Truth List
 
 Test local des assets :
 

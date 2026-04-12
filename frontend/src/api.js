@@ -61,6 +61,22 @@ export function apiUnknownUsers(limit = 20) {
   return request(`/alerts/unknown-users?limit=${limit}`);
 }
 
+export function apiApproveUnknownUser(userPrincipal, notes = "") {
+  return request(`/alerts/unknown-users/${encodeURIComponent(userPrincipal)}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+}
+
+export function apiRejectUnknownUser(userPrincipal, notes = "") {
+  return request(`/alerts/unknown-users/${encodeURIComponent(userPrincipal)}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+}
+
 export function apiRiskyUsers(page = 1, pageSize = 25, filters = {}) {
   const query = toQuery({ page, page_size: pageSize, ...filters });
   return request(`/query/risky-users?${query}`);
@@ -76,21 +92,52 @@ export function apiAuditLogs(page = 1, pageSize = 25, filters = {}) {
   return request(`/query/audit-logs?${query}`);
 }
 
-export function apiSocSummary(period = "last_7_days") {
-  return request(`/soc/summary?period=${encodeURIComponent(period)}`);
+export function apiSocSummary(filters = {}) {
+  const query = toQuery({
+    period: filters.period || "last_7_days",
+    start_date: filters.start_date,
+    end_date: filters.end_date,
+  });
+  return request(`/soc/summary?${query}`);
 }
 
-export function apiSocAnomalies(period = "last_7_days", page = 1, pageSize = 50) {
-  return request(
-    `/soc/anomalies?period=${encodeURIComponent(period)}&status=&page=${page}&page_size=${pageSize}`
-  );
+export function apiSocAnomalies(filters = {}, page = 1, pageSize = 50) {
+  const query = toQuery({
+    period: filters.period || "last_7_days",
+    start_date: filters.start_date,
+    end_date: filters.end_date,
+    event_type: filters.event_type,
+    severity: filters.severity,
+    status: filters.status,
+    page,
+    page_size: pageSize,
+  });
+  return request(`/soc/anomalies?${query}`);
 }
 
-export function apiSocAnalyze(period = "last_7_days") {
+export function apiSocAnalyze(filters = {}) {
   return request("/soc/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ period }),
+    body: JSON.stringify({
+      period: filters.period || "last_7_days",
+      start_date: filters.start_date || null,
+      end_date: filters.end_date || null,
+    }),
+  });
+}
+
+export function apiSocExportHtml(filters = {}) {
+  return request("/soc/export/html", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      period: filters.period || "last_7_days",
+      start_date: filters.start_date || null,
+      end_date: filters.end_date || null,
+      include_details: true,
+      anomalies_only: false,
+    }),
   });
 }
 
@@ -120,6 +167,34 @@ export function apiToggleUser(userId, isActive) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId, is_active: isActive }),
   });
+}
+
+export function apiLifecycleStatus() {
+  return request("/lifecycle/status");
+}
+
+export function apiLifecycleBackups(limit = 20) {
+  return request(`/lifecycle/backups?limit=${limit}`);
+}
+
+export function apiLifecycleLogs(limit = 20) {
+  return request(`/lifecycle/logs?limit=${limit}`);
+}
+
+export function apiCreateBackup() {
+  return request("/lifecycle/backup/create", { method: "POST" });
+}
+
+export function apiVerifyBackup(backupId) {
+  return request(`/lifecycle/backup/${encodeURIComponent(backupId)}/verify`, { method: "POST" });
+}
+
+export function apiInspectBackup(backupId) {
+  return request(`/lifecycle/backup/${encodeURIComponent(backupId)}/contents`);
+}
+
+export function apiRestoreBackup(backupId) {
+  return request(`/lifecycle/backup/${encodeURIComponent(backupId)}/restore`, { method: "POST" });
 }
 
 export async function apiUpload(endpoint, file) {

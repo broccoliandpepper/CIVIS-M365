@@ -30,6 +30,8 @@ logs/
 data/db/
 data/backups/
 scripts/data/backups/
+backend/data/db/
+backend/data/backups/
 
 # Sensitive sample data
 backend/sample_data/*

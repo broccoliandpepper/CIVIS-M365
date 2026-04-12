@@ -16,7 +16,7 @@ sys.stderr.flush()
 
 # Import all models to avoid relationship issues
 from app.database import init_all_databases, SessionLocal_config
-from app.models import auth, audit, settings, signins, risky_users, incidents, truth_list, ingestion_logs, audit_logs_m365, archive_manifest, lifecycle_logs
+from app.models import auth, audit, settings, signins, risky_users, incidents, truth_list, ingestion_logs, audit_logs_m365, archive_manifest, lifecycle_logs, new_user_review
 from app.models.auth import User
 
 

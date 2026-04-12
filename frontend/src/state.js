@@ -30,6 +30,14 @@ export const state = {
       operation: "",
       workload: "",
     },
+    soc: {
+      period: "last_7_days",
+      start_date: "",
+      end_date: "",
+      event_type: "",
+      severity: "",
+      status: "open",
+    },
   },
 };
 
