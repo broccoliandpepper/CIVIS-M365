@@ -43,7 +43,7 @@ export function renderLogin(error = "") {
   return `
     <div class="login-shell">
       <div class="login-card">
-        <h2>SIEM M365 V2</h2>
+        <h2>SPLONK SIEM M365 V2</h2>
         <p class="subtitle">Authentification SOC</p>
         ${error ? `<div class="notice error">${esc(error)}</div>` : ""}
         <form id="login-form">
@@ -67,7 +67,7 @@ export function renderAppShell(user) {
   return `
     <div class="app-shell">
       <header class="topbar">
-        <h1>SIEM M365 V2</h1>
+        <h1>SPLONK SIEM M365 V2</h1>
         <div class="meta">
           <span>${username} (${role})</span>
           <button class="btn secondary" id="logout-btn">Logout</button>
@@ -80,6 +80,7 @@ export function renderAppShell(user) {
         <button class="nav-btn" data-view="risky">Risky</button>
         <button class="nav-btn" data-view="incidents">Incidents</button>
         <button class="nav-btn" data-view="audit">Audit Logs</button>
+        <button class="nav-btn" data-view="truth">Truth List</button>
         <button class="nav-btn" data-view="soc">SOC</button>
         <button class="nav-btn" data-view="alerts">Alertes</button>
         ${adminNav}
@@ -161,10 +162,12 @@ export function renderLifecycle(data, currentUser = null, message = "") {
 
 export function renderDashboard(kpis) {
   const items = [
-    ["Connexions", kpis?.signins_total?.value ?? "-"],
-    ["Echecs", kpis?.signins_failed?.value ?? "-"],
+    ["Connexions", kpis?.total_connexions?.value ?? "-"],
+    ["Taux de succès", (kpis?.success_rate?.value != null ? kpis.success_rate.value + "%" : "-")],
+    ["Utilisateurs uniques", kpis?.unique_users?.value ?? "-"],
     ["Risky Users", kpis?.risky_users?.value ?? "-"],
-    ["Incidents ouverts", kpis?.incidents_open?.value ?? "-"],
+    ["Incidents ouverts", kpis?.open_incidents?.value ?? "-"],
+    ["Ops critiques", kpis?.critical_ops?.value ?? "-"],
   ];
   return `
     <section class="grid">
@@ -381,6 +384,48 @@ export function renderAuditLogs(data) {
       </article>
       ${tableOrEmpty(["Date", "User", "Operation", "Workload", "Resultat"], rows, "Aucune donnee")}
       ${pager(data?.page, data?.total_pages, "audit")}
+    </section>
+  `;
+}
+
+export function renderTruthList(data) {
+  const rows = (data?.items || []).map((row) => `
+    <tr>
+      <td>${esc(row.user_principal)}</td>
+      <td>${esc(row.display_name)}</td>
+      <td>${esc(row.department)}</td>
+      <td>${esc(row.job_title)}</td>
+      <td>${row.is_active ? "Active" : "Inactive"}</td>
+      <td>${esc(row.imported_by)}</td>
+      <td>${esc(row.imported_at)}</td>
+      <td>${esc(row.notes)}</td>
+    </tr>
+  `).join("");
+
+  const filters = data?.filters || {};
+
+  return `
+    <section class="grid">
+      <h2>Truth List</h2>
+      <div class="grid kpi-grid">
+        <article class="card"><div>Total utilisateurs</div><div class="kpi-value">${esc(data?.total ?? 0)}</div></article>
+        <article class="card"><div>Page</div><div class="kpi-value">${esc(data?.page ?? 1)}</div></article>
+      </div>
+      <article class="card">
+        <h3>Filtres</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:10px;">
+          <input class="input" name="truth-user_principal" placeholder="User principal" value="${esc(filters.user_principal || "")}">
+          <input class="input" name="truth-department" placeholder="Departement" value="${esc(filters.department || "")}">
+          <select class="input" name="truth-is_active">
+            <option value="" ${filters.is_active === "" ? "selected" : ""}>Statut (tous)</option>
+            <option value="true" ${String(filters.is_active) === "true" ? "selected" : ""}>Actif</option>
+            <option value="false" ${String(filters.is_active) === "false" ? "selected" : ""}>Inactif</option>
+          </select>
+        </div>
+        <button class="btn" data-apply-filter="truth">Appliquer</button>
+      </article>
+      ${tableOrEmpty(["User", "Display Name", "Departement", "Poste", "Statut", "Importe par", "Importe le", "Notes"], rows, "Aucun utilisateur dans la Truth List")}
+      ${pager(data?.page, data?.total_pages, "truth")}
     </section>
   `;
 }

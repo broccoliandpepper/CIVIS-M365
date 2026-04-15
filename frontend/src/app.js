@@ -11,6 +11,7 @@ import {
   apiLifecycleLogs,
   apiLifecycleStatus,
   apiLogin,
+  apiLogout,
   apiMe,
   apiRejectUnknownUser,
   apiResetPassword,
@@ -21,13 +22,14 @@ import {
   apiSocAnalyze,
   apiSocExportHtml,
   apiSocSummary,
+  apiTruthList,
   apiToggleUser,
   apiUnknownUsers,
   apiUpload,
   apiUsers,
   apiVerifyBackup,
 } from "./api.js";
-import { setToken, state } from "./state.js";
+import { resetSessionState, setToken, state } from "./state.js";
 import {
   renderAdmin,
   renderAlerts,
@@ -41,9 +43,20 @@ import {
   renderRiskyUsers,
   renderSignins,
   renderSoc,
+  renderTruthList,
 } from "./views.js";
 
 const app = document.getElementById("app");
+
+function showLogin(error = "") {
+  app.innerHTML = renderLogin(error);
+  bindLoginForm();
+}
+
+async function logoutAndReturnToLogin(error = "") {
+  resetSessionState();
+  showLogin(error);
+}
 
 function setActiveNav() {
   document.querySelectorAll(".nav-btn").forEach((el) => {
@@ -338,6 +351,14 @@ async function renderContent() {
       return;
     }
 
+    if (state.activeView === "truth") {
+      const data = await apiTruthList(state.pages.truth, 30, state.filters.truth);
+      content.innerHTML = renderTruthList({ ...data, filters: state.filters.truth });
+      wirePager(content);
+      wireFilters(content);
+      return;
+    }
+
     if (state.activeView === "soc") {
       const summary = await apiSocSummary(state.filters.soc);
       const anomalies = await apiSocAnomalies(state.filters.soc, state.pages.soc, 50);
@@ -382,10 +403,13 @@ async function renderContent() {
 }
 
 async function bindAppHandlers() {
-  document.getElementById("logout-btn")?.addEventListener("click", () => {
-    setToken("");
-    state.user = null;
-    boot();
+  document.getElementById("logout-btn")?.addEventListener("click", async () => {
+    try {
+      await apiLogout();
+    } catch {
+      // Ignore backend logout failures and clear the local session anyway.
+    }
+    await logoutAndReturnToLogin();
   });
 
   document.querySelectorAll(".nav-btn").forEach((btn) => {
@@ -412,8 +436,7 @@ function bindLoginForm() {
       setToken(auth.access_token);
       await boot();
     } catch (error) {
-      app.innerHTML = renderLogin(error.message);
-      bindLoginForm();
+        showLogin(error.message);
     }
   });
 }
@@ -427,8 +450,7 @@ async function boot() {
   }
 
   if (!state.token) {
-    app.innerHTML = renderLogin();
-    bindLoginForm();
+    showLogin();
     return;
   }
 
@@ -439,10 +461,12 @@ async function boot() {
     setActiveNav();
     await bindAppHandlers();
   } catch {
-    setToken("");
-    app.innerHTML = renderLogin("Session expiree. Reconnecte-toi.");
-    bindLoginForm();
+    await logoutAndReturnToLogin("Session expiree. Reconnecte-toi.");
   }
 }
+
+window.addEventListener("siem:unauthorized", () => {
+  showLogin("Session expiree. Reconnecte-toi.");
+});
 
 boot();

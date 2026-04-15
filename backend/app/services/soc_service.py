@@ -136,7 +136,7 @@ class SOCService:
         # Récupère tous les SignIns échoués
         failed_signins = db.query(SignIn).filter(
             and_(
-                SignIn.status == "failed",
+                SignIn.status == "failure",
                 SignIn.timestamp >= start_date,
                 SignIn.timestamp <= end_date
             )
@@ -376,7 +376,7 @@ class SOCService:
         ).all()
         
         # Calcule les statistiques
-        failed_signins = [s for s in signins if s.status == "failed"]
+        failed_signins = [s for s in signins if s.status == "failure"]
         out_of_list = [a for a in anomalies if a.event_type == "out-of-list"]
         risk_user_events = [a for a in anomalies if a.event_type == "risk-user"]
         fail_spikes = [a for a in anomalies if a.event_type == "fail-spike"]
@@ -467,7 +467,7 @@ class SOCService:
             )
         ).all()
         
-        failed = [s for s in signins if s.status == "failed"]
+        failed = [s for s in signins if s.status == "failure"]
         failed_rate = (len(failed) / len(signins) * 100) if signins else 0
         
         # Anomalies

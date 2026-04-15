@@ -1,4 +1,4 @@
-import { state } from "./state.js";
+import { resetSessionState, state } from "./state.js";
 
 const API = "/api/v1";
 
@@ -27,6 +27,11 @@ async function request(path, options = {}) {
     ? await response.json()
     : await response.text();
 
+  if (response.status === 401) {
+    resetSessionState();
+    window.dispatchEvent(new CustomEvent("siem:unauthorized"));
+  }
+
   if (!response.ok) {
     const message = payload?.detail || payload?.message || response.statusText;
     throw new Error(message);
@@ -46,6 +51,10 @@ export function apiLogin(username, password) {
 
 export function apiMe() {
   return request("/auth/me");
+}
+
+export function apiLogout() {
+  return request("/auth/logout", { method: "POST" });
 }
 
 export function apiKpis(days = 30) {
@@ -90,6 +99,11 @@ export function apiIncidents(page = 1, pageSize = 25, filters = {}) {
 export function apiAuditLogs(page = 1, pageSize = 25, filters = {}) {
   const query = toQuery({ page, page_size: pageSize, ...filters });
   return request(`/query/audit-logs?${query}`);
+}
+
+export function apiTruthList(page = 1, pageSize = 25, filters = {}) {
+  const query = toQuery({ page, page_size: pageSize, ...filters });
+  return request(`/query/truth-list?${query}`);
 }
 
 export function apiSocSummary(filters = {}) {
