@@ -23,7 +23,9 @@ class HTMLExportService:
         "out-of-list": "Country Anomaly",
         "risk-user": "Risk User Sign-In",
         "fail-spike": "Auth Spike",
-        "concurrent-ip": "Concurrent IP"
+        "concurrent-ip": "Concurrent IP",
+        "vpn-absent": "VPN Absent",
+        "atypical-hours": "Atypical Hours",
     }
     
     @staticmethod
@@ -305,6 +307,7 @@ class HTMLExportService:
                         <th>Timestamp</th>
                         <th>User</th>
                         <th>Type</th>
+                        <th>MITRE</th>
                         <th>Severity</th>
                         <th>Country</th>
                         <th>Reason</th>
@@ -318,12 +321,15 @@ class HTMLExportService:
                 event_type_label = HTMLExportService.EVENT_TYPE_LABELS.get(anomaly['event_type'], anomaly['event_type'])
                 timestamp = anomaly['timestamp'][:16] if anomaly['timestamp'] else '-'
                 country = anomaly['country'] or '-'
+                mitre_id = anomaly.get('mitre_id') or 'N/A'
+                mitre_technique = anomaly.get('mitre_technique') or 'Unknown'
                 
                 html += f"""
                     <tr>
                         <td>{timestamp}</td>
                         <td>{anomaly['user_principal']}</td>
                         <td>{event_type_label}</td>
+                        <td>{mitre_technique} ({mitre_id})</td>
                         <td>{severity_badge}</td>
                         <td>{country}</td>
                         <td>{anomaly['reason']}</td>

@@ -23,6 +23,8 @@ ALLOWED_COUNTRIES = ["BE", "SN", "BF", "BJ", "CD", "RW", "KH", "GN", "BO", "PE"]
 # Failed auth threshold: 10 attempts in 5 minutes
 FAILED_AUTH_THRESHOLD = 10
 FAILED_AUTH_WINDOW_MINUTES = 5
+BUSINESS_START_HOUR = 6
+BUSINESS_END_HOUR = 22
 
 
 class SOCService:
@@ -218,6 +220,91 @@ class SOCService:
                     })
         
         return anomalies
+
+    @staticmethod
+    def _has_vpn_context(signin: SignIn) -> bool:
+        """Heuristique légère pour identifier un contexte VPN."""
+        haystack = " ".join([
+            str(signin.app_name or ""),
+            str(signin.auth_method or ""),
+            str(signin.auth_requirement or ""),
+            str(signin.conditional_access_status or ""),
+        ]).lower()
+        vpn_markers = ["vpn", "anyconnect", "zscaler", "forticlient", "tunnel", "globalprotect"]
+        return any(marker in haystack for marker in vpn_markers)
+
+    @staticmethod
+    def detect_vpn_absent(db: Session, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """Détecte les connexions hors pays autorisés sans contexte VPN explicite."""
+        anomalies = []
+
+        signins = db.query(SignIn).filter(
+            and_(
+                SignIn.timestamp >= start_date,
+                SignIn.timestamp <= end_date,
+                SignIn.status == "success",
+            )
+        ).all()
+
+        for signin in signins:
+            country = (signin.location_country or "").upper()
+            if not country or country in ALLOWED_COUNTRIES:
+                continue
+
+            if SOCService._has_vpn_context(signin):
+                continue
+
+            anomalies.append({
+                "event_type": "vpn-absent",
+                "severity": "high",
+                "user_principal": signin.user_principal,
+                "user_display_name": signin.display_name,
+                "user_id": signin.user_id,
+                "ip_address": signin.ip_address,
+                "country": signin.location_country,
+                "city": signin.location_city,
+                "app_name": signin.app_name,
+                "timestamp": signin.timestamp,
+                "reason": "Sign-in from non-allowed country without VPN context",
+                "related_signin_id": str(signin.id),
+            })
+
+        return anomalies
+
+    @staticmethod
+    def detect_atypical_hours(db: Session, start_date: datetime, end_date: datetime) -> List[Dict]:
+        """Détecte les connexions en horaires atypiques."""
+        anomalies = []
+
+        signins = db.query(SignIn).filter(
+            and_(
+                SignIn.timestamp >= start_date,
+                SignIn.timestamp <= end_date,
+                SignIn.status == "success",
+            )
+        ).all()
+
+        for signin in signins:
+            hour = signin.timestamp.hour
+            if BUSINESS_START_HOUR <= hour < BUSINESS_END_HOUR:
+                continue
+
+            anomalies.append({
+                "event_type": "atypical-hours",
+                "severity": "medium",
+                "user_principal": signin.user_principal,
+                "user_display_name": signin.display_name,
+                "user_id": signin.user_id,
+                "ip_address": signin.ip_address,
+                "country": signin.location_country,
+                "city": signin.location_city,
+                "app_name": signin.app_name,
+                "timestamp": signin.timestamp,
+                "reason": f"Sign-in at atypical hour ({hour:02d}:00) outside {BUSINESS_START_HOUR:02d}:00-{BUSINESS_END_HOUR:02d}:00",
+                "related_signin_id": str(signin.id),
+            })
+
+        return anomalies
     
     @staticmethod
     def correlate_with_incidents(db: Session, anomalies: List[Dict], start_date: datetime, end_date: datetime) -> List[Dict]:
@@ -329,6 +416,8 @@ class SOCService:
             anomalies.extend(SOCService.detect_risk_user_signins(db, start_dt, end_dt))
             anomalies.extend(SOCService.detect_failed_auth_spikes(db, start_dt, end_dt))
             anomalies.extend(SOCService.detect_concurrent_ips(db, start_dt, end_dt))
+            anomalies.extend(SOCService.detect_vpn_absent(db, start_dt, end_dt))
+            anomalies.extend(SOCService.detect_atypical_hours(db, start_dt, end_dt))
             
             # Corrèle avec les incidents
             anomalies = SOCService.correlate_with_incidents(db, anomalies, start_dt, end_dt)

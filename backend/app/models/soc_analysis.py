@@ -10,6 +10,39 @@ from app.database import Base
 
 class SOCAnomaly(Base):
     __tablename__ = "soc_anomalies"
+
+    MITRE_MAPPING = {
+        "out-of-list": {
+            "activity": "Connexion depuis nouveau pays",
+            "technique": "Remote Services",
+            "id": "T1021",
+        },
+        "fail-spike": {
+            "activity": "Multiples echecs",
+            "technique": "Brute Force",
+            "id": "T1110",
+        },
+        "risk-user": {
+            "activity": "Connexion anomalie",
+            "technique": "Valid Accounts",
+            "id": "T1078",
+        },
+        "concurrent-ip": {
+            "activity": "Connexion anomalie",
+            "technique": "Valid Accounts",
+            "id": "T1078",
+        },
+        "vpn-absent": {
+            "activity": "Connexion VPN absent",
+            "technique": "Exfiltration Proxy",
+            "id": "T1041",
+        },
+        "atypical-hours": {
+            "activity": "Connexion horaires atypiques",
+            "technique": "System Services",
+            "id": "T1569",
+        },
+    }
     
     id = Column(Integer, primary_key=True, index=True)
     anomaly_id = Column(String(100), unique=True, index=True, nullable=False)
@@ -51,8 +84,19 @@ class SOCAnomaly(Base):
         Index('idx_soc_status', 'status', 'timestamp'),
         Index('idx_soc_country', 'country', 'timestamp'),
     )
+
+    def _mitre_mapping(self) -> dict:
+        return self.MITRE_MAPPING.get(
+            self.event_type,
+            {
+                "activity": "Activite non mappee",
+                "technique": "Unknown",
+                "id": "N/A",
+            },
+        )
     
     def to_dict(self) -> dict:
+        mitre = self._mitre_mapping()
         return {
             "id": self.id,
             "anomaly_id": self.anomaly_id,
@@ -72,6 +116,9 @@ class SOCAnomaly(Base):
             "related_risky_user_id": self.related_risky_user_id,
             "status": self.status,
             "notes": self.notes,
+            "mitre_activity": mitre["activity"],
+            "mitre_technique": mitre["technique"],
+            "mitre_id": mitre["id"],
         }
 
 

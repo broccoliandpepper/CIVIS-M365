@@ -39,6 +39,20 @@ function pager(currentPage = 1, totalPages = 1, view = "") {
   `;
 }
 
+function mitreIdBadge(id) {
+  const value = String(id || "N/A");
+  const palette = {
+    T1110: "#fee2e2",
+    T1021: "#dbeafe",
+    T1041: "#fef3c7",
+    T1569: "#e0e7ff",
+    T1078: "#dcfce7",
+  };
+  const background = palette[value] || "#e5e7eb";
+
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:${background};">${esc(value)}</span>`;
+}
+
 export function renderLogin(error = "") {
   return `
     <div class="login-shell">
@@ -437,14 +451,34 @@ export function renderSoc(summary, anomalies, filters = {}, message = "") {
     ["Echecs", summary?.failed_signins],
     ["Out-of-list", summary?.out_of_list_signins],
   ];
+
+  const mitreMatrixRows = [
+    ["Echec mot de passe repete", "Credential Stuffing", "T1110"],
+    ["Connexion depuis nouveau pays", "Remote Services", "T1021"],
+    ["Connexion VPN absent", "Exfiltration Proxy", "T1041"],
+    ["Connexion horaires atypiques", "System Services", "T1569"],
+    ["Multiples echecs", "Brute Force", "T1110"],
+    ["Connexion anomalie", "Valid Accounts", "T1078"],
+  ];
+
   const rows = (anomalies?.items || anomalies || []).map((row) => `
     <tr>
       <td>${esc(row.timestamp)}</td>
       <td>${esc(row.user_principal)}</td>
       <td>${esc(row.event_type)}</td>
+      <td>${esc(row.mitre_technique || "Unknown")}</td>
+      <td>${mitreIdBadge(row.mitre_id || "N/A")}</td>
       <td>${esc(row.severity)}</td>
       <td>${esc(row.ip_address)}</td>
       <td>${esc(row.reason)}</td>
+    </tr>
+  `).join("");
+
+  const mitreRows = mitreMatrixRows.map(([activity, technique, id]) => `
+    <tr>
+      <td>${esc(activity)}</td>
+      <td>${esc(technique)}</td>
+      <td>${mitreIdBadge(id)}</td>
     </tr>
   `).join("");
 
@@ -493,7 +527,11 @@ export function renderSoc(summary, anomalies, filters = {}, message = "") {
           </article>
         `).join("")}
       </div>
-      ${tableOrEmpty(["Date", "User", "Type", "Severite", "IP", "Reason"], rows, "Aucune anomalie")}
+      <article class="card">
+        <h3>Cartographie MITRE ATT&CK</h3>
+        ${tableOrEmpty(["Activite detectee", "Technique MITRE", "ID"], mitreRows, "Aucune correspondance")}
+      </article>
+      ${tableOrEmpty(["Date", "User", "Type", "Technique MITRE", "ID", "Severite", "IP", "Reason"], rows, "Aucune anomalie")}
       ${pager(anomalies?.page, anomalies?.total_pages, "soc")}
     </section>
   `;
