@@ -24,6 +24,7 @@ Thumbs.db
 .runtime/
 logs/
 *.log
+backend/debug_direct.txt
 
 # Databases and generated backups
 *.db
