@@ -504,10 +504,12 @@ export function renderAdmin(users, message = "", currentUser = null) {
     <tr>
       <td>${esc(u.id)}</td>
       <td>${esc(u.username)}</td>
+      <td>${esc(u.email || "")}</td>
       <td>${esc(u.role)}</td>
       <td>${esc(u.is_active ? "actif" : "inactif")}</td>
       <td>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn secondary" data-update-role="${esc(u.id)}" data-role-target="${u.role === "admin" ? "viewer" : "admin"}" ${currentUser?.id === u.id ? "disabled" : ""}>${u.role === "admin" ? "Passer lecteur" : "Passer admin"}</button>
           <button class="btn secondary" data-toggle-user="${esc(u.id)}" data-toggle-target="${esc(!u.is_active)}" ${currentUser?.id === u.id ? "disabled" : ""}>${u.is_active ? "Desactiver" : "Activer"}</button>
           <button class="btn secondary" data-reset-user="${esc(u.id)}">Reset Password</button>
         </div>
@@ -520,6 +522,24 @@ export function renderAdmin(users, message = "", currentUser = null) {
       <h2>Administration</h2>
       ${message ? `<div class="notice warn">${esc(message)}</div>` : ""}
       <article class="card">
+        <h3>Creer un utilisateur</h3>
+        <form id="create-reader-form" style="display:grid;gap:10px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            <input class="input" name="username" placeholder="Username" required>
+            <input class="input" name="email" type="email" placeholder="Email">
+            <input class="input" name="password" type="password" placeholder="Mot de passe" required>
+            <select class="input" name="role">
+              <option value="viewer" selected>Lecteur</option>
+              <option value="admin">Administrateur</option>
+            </select>
+          </div>
+          <div class="subtitle">Le mot de passe doit respecter les regles de securite du backend.</div>
+          <div>
+            <button class="btn" type="submit">Creer l utilisateur</button>
+          </div>
+        </form>
+      </article>
+      <article class="card">
         <h3>Nettoyage rapide</h3>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
           <button class="btn secondary" data-clear="signins">Vider SignIns</button>
@@ -528,7 +548,7 @@ export function renderAdmin(users, message = "", currentUser = null) {
           <button class="btn secondary" data-clear="audit_logs">Vider Audit</button>
         </div>
       </article>
-      ${tableOrEmpty(["ID", "Username", "Role", "Etat", "Actions"], rows, "Aucun utilisateur")}
+      ${tableOrEmpty(["ID", "Username", "Email", "Role", "Etat", "Actions"], rows, "Aucun utilisateur")}
     </section>
   `;
 }

@@ -216,6 +216,11 @@ class ToggleUserRequest(BaseModel):
     is_active: bool
 
 
+class UpdateUserRoleRequest(BaseModel):
+    user_id: int
+    role: str
+
+
 @router.post("/toggle-user")
 async def toggle_user(
     request: ToggleUserRequest,
@@ -230,3 +235,25 @@ async def toggle_user(
     user.is_active = request.is_active
     db.commit()
     return {"status": "toggled", "username": user.username, "is_active": user.is_active}
+
+
+@router.post("/update-role")
+async def update_user_role(
+    request: UpdateUserRoleRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_config)
+):
+    """Met à jour le rôle d'un utilisateur (admin only)"""
+    if request.role not in {"admin", "viewer"}:
+        raise HTTPException(status_code=400, detail="Role invalide")
+
+    user = db.query(User).filter(User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+    if user.id == current_user.id and request.role != current_user.role:
+        raise HTTPException(status_code=400, detail="Tu ne peux pas modifier ton propre role")
+
+    user.role = request.role
+    db.commit()
+    return {"status": "role_updated", "username": user.username, "role": user.role}

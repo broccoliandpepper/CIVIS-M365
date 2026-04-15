@@ -159,6 +159,14 @@ export function apiUsers() {
   return request("/auth/users");
 }
 
+export function apiRegister(username, password, email = "", role = "viewer") {
+  return request("/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password, email: email || null, role }),
+  });
+}
+
 export function apiClearData(sourceType) {
   return request("/admin/clear-data", {
     method: "POST",
@@ -180,6 +188,14 @@ export function apiToggleUser(userId, isActive) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: userId, is_active: isActive }),
+  });
+}
+
+export function apiUpdateUserRole(userId, role) {
+  return request("/auth/update-role", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: userId, role }),
   });
 }
 

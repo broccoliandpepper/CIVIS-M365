@@ -14,6 +14,7 @@ import {
   apiLogout,
   apiMe,
   apiRejectUnknownUser,
+  apiRegister,
   apiResetPassword,
   apiRestoreBackup,
   apiRiskyUsers,
@@ -24,6 +25,7 @@ import {
   apiSocSummary,
   apiTruthList,
   apiToggleUser,
+  apiUpdateUserRole,
   apiUnknownUsers,
   apiUpload,
   apiUsers,
@@ -164,6 +166,34 @@ async function wireSoc(content) {
 }
 
 async function wireAdmin(content) {
+  document.getElementById("create-reader-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const username = String(formData.get("username") || "").trim();
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+    const role = String(formData.get("role") || "viewer");
+
+    if (!username || !password) {
+      const users = await apiUsers().catch(() => []);
+      content.innerHTML = `${renderAdmin(users, "", state.user)}<div class="notice error">Username et mot de passe sont obligatoires</div>`;
+      await bindAppHandlers();
+      return;
+    }
+
+    try {
+      await apiRegister(username, password, email, role);
+      const users = await apiUsers();
+      content.innerHTML = renderAdmin(users, `Utilisateur ${username} cree`, state.user);
+      await bindAppHandlers();
+    } catch (error) {
+      const users = await apiUsers().catch(() => []);
+      content.innerHTML = `${renderAdmin(users, "", state.user)}<div class="notice error">${error.message}</div>`;
+      await bindAppHandlers();
+    }
+  });
+
   content.querySelectorAll("[data-clear]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
@@ -185,6 +215,21 @@ async function wireAdmin(content) {
         await apiToggleUser(Number(btn.dataset.toggleUser), btn.dataset.toggleTarget === "true");
         const users = await apiUsers();
         content.innerHTML = renderAdmin(users, "Utilisateur mis a jour", state.user);
+        await bindAppHandlers();
+      } catch (error) {
+        const users = await apiUsers().catch(() => []);
+        content.innerHTML = `${renderAdmin(users, "", state.user)}<div class="notice error">${error.message}</div>`;
+        await bindAppHandlers();
+      }
+    });
+  });
+
+  content.querySelectorAll("[data-update-role]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await apiUpdateUserRole(Number(btn.dataset.updateRole), btn.dataset.roleTarget);
+        const users = await apiUsers();
+        content.innerHTML = renderAdmin(users, "Role utilisateur mis a jour", state.user);
         await bindAppHandlers();
       } catch (error) {
         const users = await apiUsers().catch(() => []);
