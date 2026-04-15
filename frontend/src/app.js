@@ -296,7 +296,7 @@ async function wireLifecycle(content) {
       state.user,
       message
     );
-    await bindAppHandlers();
+    await bindAppHandlers({ skipRender: true });
   };
 
   document.getElementById("refresh-lifecycle-btn")?.addEventListener("click", async () => {
@@ -447,7 +447,9 @@ async function renderContent() {
   }
 }
 
-async function bindAppHandlers() {
+async function bindAppHandlers(options = {}) {
+  const { skipRender = false } = options;
+
   document.getElementById("logout-btn")?.addEventListener("click", async () => {
     try {
       await apiLogout();
@@ -464,6 +466,10 @@ async function bindAppHandlers() {
       await renderContent();
     });
   });
+
+  if (skipRender) {
+    return;
+  }
 
   await renderContent();
 }
