@@ -10,10 +10,15 @@ from app.models.signins import SignIn
 from app.models.risky_users import RiskyUser
 from app.models.incidents import Incident
 from app.models.audit_logs_m365 import M365AuditLog, CriticalOperations
+from app.models.new_user_review import NewUserReview
+from app.models.soc_analysis import SOCAnomaly
 from app.schemas.dashboard import (
     KpiCard, DashboardKpiResponse, TrendChart, 
     DashboardTrendsResponse, SecuritySummary
 )
+
+
+ALLOWED_COUNTRIES = ["BE", "SN", "BF", "BJ", "CD", "RW", "KH", "GN", "BO", "PE"]
 
 
 class DashboardService:
@@ -64,8 +69,106 @@ class DashboardService:
             ).count()
         except:
             critical_ops = 0
+
+        try:
+            critical_alerts = db.query(RiskyUser).filter(
+                RiskyUser.timestamp >= since,
+                RiskyUser.risk_level == "high",
+                RiskyUser.risk_state != "confirmedSafe"
+            ).count()
+        except:
+            critical_alerts = 0
+
+        try:
+            external_ip_signins = db.query(SignIn).filter(
+                SignIn.timestamp >= since,
+                SignIn.location_country.isnot(None),
+                ~func.upper(SignIn.location_country).in_(ALLOWED_COUNTRIES)
+            ).count()
+        except:
+            external_ip_signins = 0
+
+        try:
+            blocked_attempts = db.query(SignIn).filter(
+                SignIn.timestamp >= since,
+                SignIn.status == "failure"
+            ).count()
+        except:
+            blocked_attempts = 0
+
+        try:
+            total_incidents = db.query(Incident).filter(
+                Incident.timestamp >= since
+            ).count()
+        except:
+            total_incidents = 0
+
+        try:
+            closed_incidents = db.query(Incident).filter(
+                Incident.timestamp >= since,
+                Incident.status == "closed"
+            ).count()
+        except:
+            closed_incidents = 0
+
+        try:
+            pending_alerts = db.query(NewUserReview).filter(
+                NewUserReview.status == "pending"
+            ).count()
+        except:
+            pending_alerts = 0
+
+        try:
+            out_of_country_signins = db.query(SignIn).filter(
+                SignIn.timestamp >= since,
+                SignIn.location_country.isnot(None),
+                ~func.upper(SignIn.location_country).in_(ALLOWED_COUNTRIES)
+            ).count()
+        except:
+            out_of_country_signins = 0
+
+        try:
+            active_threats = db.query(Incident).filter(
+                Incident.status.in_(["new", "active"]),
+                Incident.severity.in_(["high", "critical"])
+            ).count()
+        except:
+            active_threats = 0
+
+        try:
+            dashboard_pending_alerts = db.query(RiskyUser).filter(
+                RiskyUser.risk_state.in_(["atRisk", "dismissed"])
+            ).count()
+        except:
+            dashboard_pending_alerts = 0
+
+        try:
+            users_at_risk = db.query(RiskyUser).filter(
+                RiskyUser.risk_state != "confirmedSafe"
+            ).count()
+        except:
+            users_at_risk = 0
+
+        try:
+            soc_open_queue = db.query(SOCAnomaly).filter(
+                SOCAnomaly.timestamp >= since,
+                SOCAnomaly.status.in_(["open", "investigating"])
+            ).count()
+        except:
+            soc_open_queue = 0
         
         success_rate = round((total_signins - failed_signins) / total_signins * 100, 1) if total_signins > 0 else 100
+        out_of_country_rate = round((out_of_country_signins / total_signins) * 100, 2) if total_signins > 0 else 0.0
+        resolution_rate = round((closed_incidents / total_incidents) * 100, 2) if total_incidents > 0 else 0.0
+
+        security_score = 100
+        if active_threats > 0:
+            security_score -= min(active_threats * 10, 30)
+        if dashboard_pending_alerts > 5:
+            security_score -= 10
+        if users_at_risk > 10:
+            security_score -= 20
+        security_score = max(security_score, 0)
         
         kpis = {
             "total_connexions": KpiCard(
@@ -114,6 +217,62 @@ class DashboardService:
                 unit="",
                 trend="stable",
                 color="orange",
+                icon="shield"
+            ),
+            "critical_alerts": KpiCard(
+                title="Alertes Critiques",
+                value=critical_alerts,
+                unit="",
+                trend="up" if critical_alerts > 0 else "stable",
+                color="red" if critical_alerts > 0 else "green",
+                icon="alert"
+            ),
+            "external_suspicious_ips": KpiCard(
+                title="IPs Suspectes Externes",
+                value=external_ip_signins,
+                unit="",
+                trend="up" if external_ip_signins > 0 else "stable",
+                color="orange" if external_ip_signins > 0 else "green",
+                icon="globe"
+            ),
+            "blocked_attempts": KpiCard(
+                title="Tentatives Bloquees",
+                value=blocked_attempts,
+                unit="",
+                trend="up" if blocked_attempts > 0 else "stable",
+                color="orange" if blocked_attempts > 0 else "green",
+                icon="ban"
+            ),
+            "incident_resolution_rate": KpiCard(
+                title="Taux Resolution Incidents",
+                value=resolution_rate,
+                unit="%",
+                trend="up" if resolution_rate >= 80 else "down",
+                color="green" if resolution_rate >= 80 else "orange",
+                icon="check"
+            ),
+            "out_of_country_rate": KpiCard(
+                title="Taux Connexions Hors Pays",
+                value=out_of_country_rate,
+                unit="%",
+                trend="down" if out_of_country_rate <= 5 else "up",
+                color="green" if out_of_country_rate <= 5 else "red",
+                icon="map"
+            ),
+            "alerts_pending_queue": KpiCard(
+                title="Alertes En Attente",
+                value=pending_alerts + soc_open_queue,
+                unit="",
+                trend="up" if (pending_alerts + soc_open_queue) > 0 else "stable",
+                color="orange" if (pending_alerts + soc_open_queue) > 0 else "green",
+                icon="clock"
+            ),
+            "security_score": KpiCard(
+                title="Score Securite Global",
+                value=security_score,
+                unit="/100",
+                trend="down" if security_score < 80 else "stable",
+                color="green" if security_score >= 80 else ("orange" if security_score >= 50 else "red"),
                 icon="shield"
             )
         }

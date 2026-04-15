@@ -175,14 +175,30 @@ export function renderLifecycle(data, currentUser = null, message = "") {
 }
 
 export function renderDashboard(kpis) {
-  const items = [
-    ["Connexions", kpis?.total_connexions?.value ?? "-"],
-    ["Taux de succès", (kpis?.success_rate?.value != null ? kpis.success_rate.value + "%" : "-")],
-    ["Utilisateurs uniques", kpis?.unique_users?.value ?? "-"],
-    ["Risky Users", kpis?.risky_users?.value ?? "-"],
-    ["Incidents ouverts", kpis?.open_incidents?.value ?? "-"],
-    ["Ops critiques", kpis?.critical_ops?.value ?? "-"],
-  ];
+  const entries = Object.entries(kpis || {});
+  const items = entries.map(([key, card]) => {
+    const label = card?.title || key;
+    const value = card?.value;
+    const unit = card?.unit || "";
+
+    if (value == null || Number.isNaN(Number(value))) {
+      return [label, "-"];
+    }
+
+    const numeric = Number(value);
+    const formatted = Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(2);
+
+    if (!unit) {
+      return [label, formatted];
+    }
+
+    if (unit === "%") {
+      return [label, `${formatted}%`];
+    }
+
+    return [label, `${formatted} ${unit}`];
+  });
+
   return `
     <section class="grid">
       <h2>Dashboard</h2>
