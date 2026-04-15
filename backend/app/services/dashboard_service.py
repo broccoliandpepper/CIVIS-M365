@@ -4,7 +4,7 @@ Service pour Dashboard Direction avec KPIs et Tendances
 
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, desc
 
 from app.models.signins import SignIn
 from app.models.risky_users import RiskyUser
@@ -390,3 +390,91 @@ class DashboardService:
             pendingAlerts=pendingAlerts,
             usersAtRisk=usersAtRisk
         )
+
+    @staticmethod
+    def get_kpi_drilldown(db: Session, key: str, days: int = 30, limit: int = 100) -> dict:
+        since = datetime.utcnow() - timedelta(days=days)
+
+        if key in {"external_suspicious_ips", "out_of_country_rate"}:
+            query = db.query(SignIn).filter(
+                SignIn.timestamp >= since,
+                SignIn.location_country.isnot(None),
+                ~func.upper(SignIn.location_country).in_(ALLOWED_COUNTRIES)
+            )
+            total = query.count()
+            rows = query.order_by(desc(SignIn.timestamp)).limit(limit).all()
+
+            return {
+                "kpi": key,
+                "title": "Sign-ins hors pays autorises",
+                "columns": ["Date", "User", "IP", "Pays", "Status", "App"],
+                "items": [
+                    {
+                        "date": r.timestamp.isoformat() if r.timestamp else None,
+                        "user": r.user_principal,
+                        "ip": r.ip_address,
+                        "country": r.location_country,
+                        "status": r.status,
+                        "app": r.app_name,
+                    }
+                    for r in rows
+                ],
+                "total": total,
+                "displayed": len(rows),
+            }
+
+        if key == "blocked_attempts":
+            query = db.query(SignIn).filter(
+                SignIn.timestamp >= since,
+                SignIn.status == "failure"
+            )
+            total = query.count()
+            rows = query.order_by(desc(SignIn.timestamp)).limit(limit).all()
+
+            return {
+                "kpi": key,
+                "title": "Tentatives bloquees",
+                "columns": ["Date", "User", "IP", "Pays", "Erreur", "Raison"],
+                "items": [
+                    {
+                        "date": r.timestamp.isoformat() if r.timestamp else None,
+                        "user": r.user_principal,
+                        "ip": r.ip_address,
+                        "country": r.location_country,
+                        "error_code": r.error_code,
+                        "failure_reason": r.failure_reason,
+                    }
+                    for r in rows
+                ],
+                "total": total,
+                "displayed": len(rows),
+            }
+
+        if key == "risky_users":
+            query = db.query(RiskyUser).filter(
+                RiskyUser.timestamp >= since,
+                RiskyUser.risk_state != "confirmedSafe"
+            )
+            total = query.count()
+            rows = query.order_by(desc(RiskyUser.timestamp)).limit(limit).all()
+
+            return {
+                "kpi": key,
+                "title": "Utilisateurs a risque (30j)",
+                "columns": ["Date", "User", "Risk level", "Risk state", "Detail", "Detection"],
+                "items": [
+                    {
+                        "date": r.timestamp.isoformat() if r.timestamp else None,
+                        "user": r.user_principal,
+                        "risk_level": r.risk_level,
+                        "risk_state": r.risk_state,
+                        "risk_detail": r.risk_detail,
+                        "detection_type": r.detection_type,
+                    }
+                    for r in rows
+                ],
+                "total": total,
+                "displayed": len(rows),
+            }
+
+        raise ValueError(f"Unsupported KPI drilldown key: {key}")

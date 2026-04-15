@@ -3,6 +3,7 @@ Endpoints Dashboard Direction
 """
 
 from fastapi import APIRouter, Depends, Query
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -134,3 +135,18 @@ async def export_director_pdf(
     
     from fastapi.responses import HTMLResponse
     return HTMLResponse(content=html_content)
+
+
+@router.get("/kpi-drilldown")
+async def get_kpi_drilldown(
+    key: str = Query(..., description="KPI key to drill down"),
+    days: int = Query(30, ge=1, le=365),
+    limit: int = Query(100, ge=1, le=500),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_hot)
+):
+    """Details table for selected dashboard KPI cards."""
+    try:
+        return DashboardService.get_kpi_drilldown(db, key=key, days=days, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

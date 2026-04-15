@@ -61,6 +61,11 @@ export function apiKpis(days = 30) {
   return request(`/dashboard/kpis?days=${days}`);
 }
 
+export function apiKpiDrilldown(key, days = 30, limit = 100) {
+  const query = toQuery({ key, days, limit });
+  return request(`/dashboard/kpi-drilldown?${query}`);
+}
+
 export function apiSignins(page = 1, pageSize = 25, filters = {}) {
   const query = toQuery({ page, page_size: pageSize, ...filters });
   return request(`/query/signins?${query}`);

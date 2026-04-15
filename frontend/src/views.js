@@ -174,7 +174,14 @@ export function renderLifecycle(data, currentUser = null, message = "") {
   `;
 }
 
-export function renderDashboard(kpis) {
+export function renderDashboard(kpis, drilldown = null) {
+  const drillable = new Set([
+    "external_suspicious_ips",
+    "blocked_attempts",
+    "out_of_country_rate",
+    "risky_users",
+  ]);
+
   const entries = Object.entries(kpis || {});
   const items = entries.map(([key, card]) => {
     const label = card?.title || key;
@@ -182,35 +189,86 @@ export function renderDashboard(kpis) {
     const unit = card?.unit || "";
 
     if (value == null || Number.isNaN(Number(value))) {
-      return [label, "-"];
+      return [label, "-", key];
     }
 
     const numeric = Number(value);
     const formatted = Number.isInteger(numeric) ? String(numeric) : numeric.toFixed(2);
 
     if (!unit) {
-      return [label, formatted];
+      return [label, formatted, key];
     }
 
     if (unit === "%") {
-      return [label, `${formatted}%`];
+      return [label, `${formatted}%`, key];
     }
 
-    return [label, `${formatted} ${unit}`];
+    return [label, `${formatted} ${unit}`, key];
   });
+
+  const drilldownRows = (drilldown?.items || []).map((row) => {
+    if (drilldown?.kpi === "risky_users") {
+      return `
+        <tr>
+          <td>${esc(row.date)}</td>
+          <td>${esc(row.user)}</td>
+          <td>${esc(row.risk_level)}</td>
+          <td>${esc(row.risk_state)}</td>
+          <td>${esc(row.risk_detail)}</td>
+          <td>${esc(row.detection_type)}</td>
+        </tr>
+      `;
+    }
+
+    if (drilldown?.kpi === "blocked_attempts") {
+      return `
+        <tr>
+          <td>${esc(row.date)}</td>
+          <td>${esc(row.user)}</td>
+          <td>${esc(row.ip)}</td>
+          <td>${esc(row.country)}</td>
+          <td>${esc(row.error_code)}</td>
+          <td>${esc(row.failure_reason)}</td>
+        </tr>
+      `;
+    }
+
+    return `
+      <tr>
+        <td>${esc(row.date)}</td>
+        <td>${esc(row.user)}</td>
+        <td>${esc(row.ip)}</td>
+        <td>${esc(row.country)}</td>
+        <td>${esc(row.status)}</td>
+        <td>${esc(row.app)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const drilldownTable = drilldown
+    ? `
+      <article class="card">
+        <h3>${esc(drilldown.title || "Details KPI")}</h3>
+        <div class="subtitle">${esc(drilldown.displayed || 0)} / ${esc(drilldown.total || 0)} lignes affichees</div>
+        ${tableOrEmpty(drilldown.columns || [], drilldownRows, "Aucune donnee")}
+      </article>
+    `
+    : "";
 
   return `
     <section class="grid">
       <h2>Dashboard</h2>
       <div class="grid kpi-grid">
-        ${items.map(([label, value]) => `
+        ${items.map(([label, value, key]) => `
           <article class="card">
             <div>${esc(label)}</div>
             <div class="kpi-value">${esc(value)}</div>
+            ${drillable.has(key) ? `<button class="btn secondary" data-kpi-drilldown="${esc(key)}">Voir details</button>` : ""}
           </article>
         `).join("")}
       </div>
       <button class="btn" id="refresh-kpi">Rafraichir KPI</button>
+      ${drilldownTable}
     </section>
   `;
 }

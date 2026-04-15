@@ -7,6 +7,7 @@ import {
   apiIncidents,
   apiInspectBackup,
   apiKpis,
+  apiKpiDrilldown,
   apiLifecycleBackups,
   apiLifecycleLogs,
   apiLifecycleStatus,
@@ -49,6 +50,7 @@ import {
 } from "./views.js";
 
 const app = document.getElementById("app");
+let dashboardDrilldown = null;
 
 function showLogin(error = "") {
   app.innerHTML = renderLogin(error);
@@ -353,8 +355,23 @@ async function renderContent() {
   try {
     if (state.activeView === "dashboard") {
       const data = await apiKpis(30);
-      content.innerHTML = renderDashboard(data.kpis || data);
-      document.getElementById("refresh-kpi")?.addEventListener("click", () => renderContent());
+      content.innerHTML = renderDashboard(data.kpis || data, dashboardDrilldown);
+      document.getElementById("refresh-kpi")?.addEventListener("click", async () => {
+        dashboardDrilldown = null;
+        await renderContent();
+      });
+      content.querySelectorAll("[data-kpi-drilldown]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const key = btn.dataset.kpiDrilldown;
+          if (!key) return;
+          try {
+            dashboardDrilldown = await apiKpiDrilldown(key, 30, 100);
+            await renderContent();
+          } catch (error) {
+            content.innerHTML = `${renderDashboard(data.kpis || data, dashboardDrilldown)}<div class="notice error">${error.message}</div>`;
+          }
+        });
+      });
       return;
     }
 
