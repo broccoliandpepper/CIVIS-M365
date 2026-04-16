@@ -156,6 +156,15 @@ class DashboardService:
             ).count()
         except:
             soc_open_queue = 0
+
+        try:
+            atypical_hours = db.query(SOCAnomaly).filter(
+                SOCAnomaly.timestamp >= since,
+                SOCAnomaly.event_type == "atypical-hours",
+                SOCAnomaly.status != "dismissed"
+            ).count()
+        except:
+            atypical_hours = 0
         
         success_rate = round((total_signins - failed_signins) / total_signins * 100, 1) if total_signins > 0 else 100
         out_of_country_rate = round((out_of_country_signins / total_signins) * 100, 2) if total_signins > 0 else 0.0
@@ -265,6 +274,14 @@ class DashboardService:
                 unit="",
                 trend="up" if (pending_alerts + soc_open_queue) > 0 else "stable",
                 color="orange" if (pending_alerts + soc_open_queue) > 0 else "green",
+                icon="clock"
+            ),
+            "atypical_hours": KpiCard(
+                title="Connexions Horaires Atypiques",
+                value=atypical_hours,
+                unit="",
+                trend="up" if atypical_hours > 0 else "stable",
+                color="orange" if atypical_hours > 0 else "green",
                 icon="clock"
             ),
             "security_score": KpiCard(
@@ -470,6 +487,34 @@ class DashboardService:
                         "risk_state": r.risk_state,
                         "risk_detail": r.risk_detail,
                         "detection_type": r.detection_type,
+                    }
+                    for r in rows
+                ],
+                "total": total,
+                "displayed": len(rows),
+            }
+
+        if key == "atypical_hours":
+            query = db.query(SOCAnomaly).filter(
+                SOCAnomaly.timestamp >= since,
+                SOCAnomaly.event_type == "atypical-hours",
+                SOCAnomaly.status != "dismissed"
+            )
+            total = query.count()
+            rows = query.order_by(desc(SOCAnomaly.timestamp)).limit(limit).all()
+
+            return {
+                "kpi": key,
+                "title": "Connexions horaires atypiques",
+                "columns": ["Date", "User", "IP", "Pays", "Severite", "Raison"],
+                "items": [
+                    {
+                        "date": r.timestamp.isoformat() if r.timestamp else None,
+                        "user": r.user_principal,
+                        "ip": r.ip_address,
+                        "country": r.country,
+                        "severity": r.severity,
+                        "reason": r.reason,
                     }
                     for r in rows
                 ],

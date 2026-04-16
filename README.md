@@ -368,6 +368,8 @@ Détections implémentées :
 - `risk-user` : connexion d'un utilisateur marqué à risque élevé
 - `fail-spike` : pic d'échecs d'authentification (10+ en 5 minutes)
 - `concurrent-ip` : connexions rapprochées depuis des IP différentes
+- `vpn-absent` : connexion hors pays autorisés sans contexte VPN explicite
+- `atypical-hours` : connexion réussie en dehors de la plage horaire métier (06:00-22:00)
 
 Pipeline SOC :
 1. Sélection d'une période (`today`, `last_7_days`, `last_30_days`, `custom`)
@@ -472,8 +474,9 @@ Interface SOC (onglet `SOC Report`) :
 | `/api/v1/query/risky-users` | GET | Rechercher Risky Users |
 | `/api/v1/query/incidents` | GET | Rechercher Incidents |
 | `/api/v1/query/truth-list` | GET | Rechercher Truth List |
-| `/api/v1/query/kpis` | GET | KPIs dashboard |
+| `/api/v1/dashboard/kpis` | GET | KPIs dashboard |
 | `/api/v1/dashboard/trends` | GET | Tendances |
+| `/api/v1/dashboard/kpi-drilldown` | GET | Détail d'un KPI (table filtrée) |
 
 ### 6.4 Alertes
 
@@ -508,6 +511,16 @@ Interface SOC (onglet `SOC Report`) :
 | `/api/v1/soc/anomalies` | GET | Lister les anomalies SOC (pagination + filtres) |
 | `/api/v1/soc/users/{user_principal}` | GET | Profil de risque SOC d'un utilisateur |
 | `/api/v1/soc/export/html` | POST | Exporter le rapport SOC en HTML |
+
+### 6.8 KPIs Dashboard - Détails disponibles
+
+Les cartes KPI ci-dessous supportent `Voir details` et affichent une table filtrée :
+
+- `external_suspicious_ips`
+- `blocked_attempts`
+- `out_of_country_rate`
+- `risky_users`
+- `atypical_hours` (uniquement les anomalies SOC de type `atypical-hours`)
 
 ---
 

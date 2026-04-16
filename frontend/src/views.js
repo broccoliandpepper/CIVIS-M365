@@ -180,6 +180,7 @@ export function renderDashboard(kpis, drilldown = null) {
     "blocked_attempts",
     "out_of_country_rate",
     "risky_users",
+    "atypical_hours",
   ]);
 
   const entries = Object.entries(kpis || {});
@@ -229,6 +230,19 @@ export function renderDashboard(kpis, drilldown = null) {
           <td>${esc(row.country)}</td>
           <td>${esc(row.error_code)}</td>
           <td>${esc(row.failure_reason)}</td>
+        </tr>
+      `;
+    }
+
+    if (drilldown?.kpi === "atypical_hours") {
+      return `
+        <tr>
+          <td>${esc(row.date)}</td>
+          <td>${esc(row.user)}</td>
+          <td>${esc(row.ip)}</td>
+          <td>${esc(row.country)}</td>
+          <td>${esc(row.severity)}</td>
+          <td>${esc(row.reason)}</td>
         </tr>
       `;
     }

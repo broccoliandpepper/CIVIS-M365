@@ -121,7 +121,7 @@ h1, h2, h3 {
 
 .nav-btn {
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 10px;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
