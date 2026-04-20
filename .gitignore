@@ -38,6 +38,7 @@ backend/data/backups/
 backend/sample_data/*
 !backend/sample_data/README_SENSITIVE.md
 Context/Sample/
+docs/*
 
 # Build artifacts
 node_modules/

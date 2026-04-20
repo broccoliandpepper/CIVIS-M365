@@ -197,7 +197,7 @@ class DashboardService:
                 icon="check"
             ),
             "unique_users": KpiCard(
-                title="Utilisateurs Uniques",
+                title="Utilisateurs Connectes",
                 value=unique_users,
                 unit="",
                 trend="stable",
@@ -520,6 +520,51 @@ class DashboardService:
                 ],
                 "total": total,
                 "displayed": len(rows),
+            }
+
+        if key == "unique_users":
+            from app.models.truth_list import TruthListUser
+            
+            # Get distinct users with their signin info
+            distinct_users = db.query(
+                SignIn.user_principal,
+                SignIn.display_name,
+                func.min(SignIn.timestamp).label("first_signin"),
+                func.max(SignIn.timestamp).label("last_signin"),
+                func.count(SignIn.id).label("signin_count")
+            ).filter(
+                SignIn.timestamp >= since
+            ).group_by(
+                SignIn.user_principal,
+                SignIn.display_name
+            ).order_by(
+                desc(func.count(SignIn.id))
+            ).limit(limit).all()
+            
+            # Get all truth_list users for fast lookup
+            truth_list = db.query(TruthListUser.user_principal).all()
+            truth_set = {t[0] for t in truth_list}
+            
+            total = db.query(func.count(func.distinct(SignIn.user_principal))).filter(
+                SignIn.timestamp >= since
+            ).scalar() or 0
+            
+            return {
+                "kpi": key,
+                "title": "Utilisateurs connectes (30j)",
+                "columns": ["User", "Nom", "Statut", "Connexions", "Derniere connexion"],
+                "items": [
+                    {
+                        "user": r.user_principal,
+                        "display_name": r.display_name or "-",
+                        "in_truth_list": r.user_principal in truth_set,
+                        "signin_count": r.signin_count,
+                        "last_signin": r.last_signin.isoformat() if r.last_signin else None,
+                    }
+                    for r in distinct_users
+                ],
+                "total": total,
+                "displayed": len(distinct_users),
             }
 
         raise ValueError(f"Unsupported KPI drilldown key: {key}")
