@@ -232,6 +232,26 @@ export function apiRestoreBackup(backupId) {
   return request(`/lifecycle/backup/${encodeURIComponent(backupId)}/restore`, { method: "POST" });
 }
 
+export function apiRestoreBackupActive(backupId, confirmPhrase) {
+  return request(`/lifecycle/backup/${encodeURIComponent(backupId)}/restore/activate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm_phrase: confirmPhrase }),
+  });
+}
+
+export function apiRollbackActiveRestore(rollbackId, confirmPhrase) {
+  return request(`/lifecycle/rollback/${encodeURIComponent(rollbackId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm_phrase: confirmPhrase }),
+  });
+}
+
+export function apiRunLifecycleRetention() {
+  return request("/lifecycle/retention/run", { method: "POST" });
+}
+
 export async function apiUpload(endpoint, file) {
   const formData = new FormData();
   formData.append("file", file);

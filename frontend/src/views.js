@@ -109,6 +109,7 @@ export function renderLifecycle(data, currentUser = null, message = "") {
   const backups = data?.backups || [];
   const logs = data?.logs || [];
   const inspected = data?.inspectedBackup || null;
+  const rotation = status?.rotation || {};
   const canManage = currentUser?.role === "admin";
 
   const backupRows = backups.map((item) => `
@@ -123,6 +124,7 @@ export function renderLifecycle(data, currentUser = null, message = "") {
           <button class="btn secondary" data-inspect-backup="${esc(item.backup_id)}">Inspect</button>
           ${canManage ? `<button class="btn secondary" data-verify-backup="${esc(item.backup_id)}">Verify</button>` : ""}
           ${canManage ? `<button class="btn secondary" data-restore-backup="${esc(item.backup_id)}">Restore</button>` : ""}
+          ${canManage ? `<button class="btn secondary" data-restore-active-backup="${esc(item.backup_id)}">Restore actif</button>` : ""}
         </div>
       </td>
     </tr>
@@ -144,6 +146,7 @@ export function renderLifecycle(data, currentUser = null, message = "") {
       ${message ? `<div class="notice success">${esc(message)}</div>` : ""}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         ${canManage ? `<button class="btn" id="create-backup-btn">Creer un backup</button>` : ""}
+        ${canManage ? `<button class="btn secondary" id="run-retention-btn">Rotation retention</button>` : ""}
         <button class="btn secondary" id="refresh-lifecycle-btn">Rafraichir</button>
       </div>
       <div class="grid kpi-grid">
@@ -151,6 +154,24 @@ export function renderLifecycle(data, currentUser = null, message = "") {
         <article class="card"><div>Risky users</div><div class="kpi-value">${esc(status.hot?.risky_users ?? "-")}</div></article>
         <article class="card"><div>Incidents</div><div class="kpi-value">${esc(status.hot?.incidents ?? "-")}</div></article>
         <article class="card"><div>Archive records</div><div class="kpi-value">${esc(status.archive?.records ?? "-")}</div></article>
+        <article class="card"><div>Archives .sbk</div><div class="kpi-value">${esc(rotation.backup_archives_count ?? "-")}</div></article>
+        <article class="card"><div>Snapshots rollback</div><div class="kpi-value">${esc(rotation.rollback_snapshots_count ?? "-")}</div></article>
+      </div>
+      <article class="card">
+        <h3>Politique de retention</h3>
+        <div class="subtitle">
+          Backups: ${esc(rotation.backup_retention_days ?? "-")} jours (max ${esc(rotation.backup_retention_max_files ?? "-")})
+          | Rollback: ${esc(rotation.rollback_retention_days ?? "-")} jours (max ${esc(rotation.rollback_retention_max_snapshots ?? "-")})
+        </div>
+        ${canManage ? `
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:flex-end;">
+            <div style="flex:1;min-width:220px;">
+              <label>Rollback ID</label>
+              <input class="input" id="rollback-id-input" placeholder="rollback_YYYYMMDD_HHMMSS">
+            </div>
+            <button class="btn secondary" id="run-rollback-btn">Executer rollback</button>
+          </div>
+        ` : ""}
       </div>
       <article class="card">
         <h3>Backups</h3>
@@ -181,6 +202,7 @@ export function renderDashboard(kpis, drilldown = null) {
     "out_of_country_rate",
     "risky_users",
     "atypical_hours",
+    "unique_users",
   ]);
 
   const entries = Object.entries(kpis || {});
@@ -243,6 +265,20 @@ export function renderDashboard(kpis, drilldown = null) {
           <td>${esc(row.country)}</td>
           <td>${esc(row.severity)}</td>
           <td>${esc(row.reason)}</td>
+        </tr>
+      `;
+    }
+
+    if (drilldown?.kpi === "unique_users") {
+      const bgColor = row.in_truth_list ? "" : "background:#fee2e2;";  // Red for out-of-list
+      const statusText = row.in_truth_list ? "In List" : "OUT OF LIST";
+      return `
+        <tr style="${bgColor}">
+          <td>${esc(row.user)}</td>
+          <td>${esc(row.display_name)}</td>
+          <td>${esc(statusText)}</td>
+          <td>${esc(row.signin_count)}</td>
+          <td>${esc(row.last_signin)}</td>
         </tr>
       `;
     }

@@ -27,9 +27,10 @@ class ArchiveManifest(Base):
     
     file_size_bytes = Column(BigInteger, nullable=False)
     md5_checksum = Column(String(32), nullable=False)
+    sha256_checksum = Column(String(64), nullable=True)
     
-    is_encrypted = Column(Boolean, default=True, nullable=False)
-    encryption_method = Column(String(50), default="Fernet", nullable=False)
+    is_encrypted = Column(Boolean, default=False, nullable=False)
+    encryption_method = Column(String(50), default="none", nullable=False)
     
     status = Column(String(20), default="created", nullable=False)
     archive_cleanup_completed = Column(Boolean, default=False, nullable=False)
@@ -57,8 +58,11 @@ class ArchiveManifest(Base):
             },
             "file_size_bytes": self.file_size_bytes,
             "md5_checksum": self.md5_checksum,
+            "sha256_checksum": self.sha256_checksum,
             "is_encrypted": self.is_encrypted,
+            "encryption_method": self.encryption_method,
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "archive_cleanup_completed": self.archive_cleanup_completed
+            "archive_cleanup_completed": self.archive_cleanup_completed,
+            "notes": self.notes,
         }

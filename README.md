@@ -347,10 +347,26 @@ Utilisateur Connecté
 | 90-180 jours | ARCHIVE | Lecture seule |
 | > 180 jours | BACKUP ZIP | Restaurable si besoin |
 
-**Automatisation** :
-- Chaque jour à 02h00 : Job vérifie si HOT contient des données > 90 jours
-- Si oui : Déplacement vers ARCHIVE
-- Après 90 jours dans ARCHIVE : Création automatique d'un backup ZIP chiffré
+**État actuel Phase 2 du backup/restore** :
+- Backup manuel déclenchable depuis l'interface Lifecycle ou l'API
+- Snapshot cohérent multi-bases : `HOT`, `ARCHIVE`, `CONFIG`
+- Archive chiffrée `AES-256-GCM` au format conteneur `.sbk`
+- `manifest.json` embarqué dans la charge utile interne
+- Intégrité renforcée avec `SHA-256` et `MD5` sur l'archive finale, plus `SHA-256` par fichier interne
+- Restore dry-run : déchiffrement, validation du manifest, extraction dans un dossier isolé, sans écrasement de la base active
+
+**Préparation Phase 3 - restauration active contrôlée** :
+- Endpoint de restauration active disponible pour `HOT` et `ARCHIVE`
+- Confirmation explicite opérateur requise avant activation
+- Snapshot de rollback créé avant remplacement des bases runtime
+- Endpoint de rollback opérateur disponible pour revenir au snapshot précédent
+- La base `CONFIG` reste exclue du restore actif live à ce stade pour éviter d'écraser la base de session courante
+- Rotation/rétention automatique active sur archives `.sbk` et snapshots de rollback
+
+**Limites connues à ce stade** :
+- Pas encore de job automatique complet HOT -> ARCHIVE -> BACKUP
+- Pas encore de restauration active live de la base `CONFIG`
+- Rétention pilotée par configuration (`BACKUP_RETENTION_*`, `ROLLBACK_RETENTION_*`) sans planificateur externe dédié
 
 ### 4.4 Roles et Permissions
 
@@ -437,8 +453,11 @@ Interface SOC (onglet `SOC Report`) :
 ### 5.6 Mensuel - Maintenance
 
 1. Vérifier les backups : `/api/v1/lifecycle/backups`
-2. Nettoyer si nécessaire : `/api/v1/lifecycle/cleanup`
-3. Mettre à jour la Truth List
+2. Vérifier l'intégrité d'un backup : `/api/v1/lifecycle/backup/{backup_id}/verify`
+3. Tester un restore isolé : `/api/v1/lifecycle/backup/{backup_id}/restore`
+4. Si nécessaire, lancer une restauration active contrôlée : `/api/v1/lifecycle/backup/{backup_id}/restore/activate`
+5. En cas de problème post-restore, déclencher le rollback opérateur : `/api/v1/lifecycle/rollback/{rollback_id}`
+6. Mettre à jour la Truth List
 
 ---
 
@@ -499,8 +518,50 @@ Interface SOC (onglet `SOC Report`) :
 | Endpoint | Méthode | Description |
 |----------|--------|-------------|
 | `/api/v1/lifecycle/status` | GET | Statut archive |
-| `/api/v1/lifecycle/backup/create` | POST | Créer backup |
+| `/api/v1/lifecycle/backup/create` | POST | Créer un backup cohérent multi-bases chiffré AES-256-GCM |
 | `/api/v1/lifecycle/backups` | GET | Liste backups |
+| `/api/v1/lifecycle/logs` | GET | Historique des opérations backup/restore |
+| `/api/v1/lifecycle/backup/{backup_id}/contents` | GET | Inspecter le contenu du ZIP et son manifest |
+| `/api/v1/lifecycle/backup/{backup_id}/verify` | POST | Vérifier les checksums MD5/SHA-256 et le manifest |
+| `/api/v1/lifecycle/backup/{backup_id}/restore` | POST | Restore dry-run dans un dossier isolé |
+| `/api/v1/lifecycle/backup/{backup_id}/restore/activate` | POST | Restore actif contrôlé de HOT et ARCHIVE |
+| `/api/v1/lifecycle/rollback/{rollback_id}` | POST | Rollback opérateur vers le snapshot pré-restore |
+| `/api/v1/lifecycle/retention/run` | POST | Exécuter manuellement la rotation/rétention |
+
+### 6.6.1 Contenu d'un backup chiffré
+
+Chaque archive chiffrée `.sbk` encapsule une archive interne contenant :
+
+- `hot.db`
+- `archive.db`
+- `config.db`
+- `manifest.json`
+
+Le `manifest.json` embarque :
+
+- l'identifiant du backup
+- la version de format
+- le périmètre du backup
+- les checksums SHA-256 des fichiers internes
+- les compteurs de données sauvegardées
+
+### 6.6.2 Smoke test de validation backup/restore
+
+Le projet contient un smoke test bout-en-bout :
+
+```bash
+python scripts/test_backup_restore_flow.py
+```
+
+Le test exécute :
+
+- login admin
+- création d'un backup chiffré
+- inspection du backup
+- vérification d'intégrité
+- restore dry-run
+- restore actif contrôlé
+- rollback opérateur
 
 ### 6.7 SOC
 

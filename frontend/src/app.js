@@ -18,6 +18,9 @@ import {
   apiRegister,
   apiResetPassword,
   apiRestoreBackup,
+  apiRestoreBackupActive,
+  apiRollbackActiveRestore,
+  apiRunLifecycleRetention,
   apiRiskyUsers,
   apiSignins,
   apiSocAnomalies,
@@ -314,6 +317,15 @@ async function wireLifecycle(content) {
     }
   });
 
+  document.getElementById("run-retention-btn")?.addEventListener("click", async () => {
+    try {
+      const result = await apiRunLifecycleRetention();
+      await reloadLifecycle(`Retention: ${result.status}`);
+    } catch (error) {
+      content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
+    }
+  });
+
   content.querySelectorAll("[data-inspect-backup]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
@@ -345,6 +357,43 @@ async function wireLifecycle(content) {
         content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
       }
     });
+  });
+
+  content.querySelectorAll("[data-restore-active-backup]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const backupId = btn.dataset.restoreActiveBackup;
+      const confirmPhrase = window.prompt(`Confirmer la restauration active: RESTORE ${backupId}`, `RESTORE ${backupId}`) || "";
+      if (!confirmPhrase) {
+        return;
+      }
+
+      try {
+        const result = await apiRestoreBackupActive(backupId, confirmPhrase);
+        await reloadLifecycle(`Restore actif: ${result.status} (${result.rollback_id || "no rollback id"})`);
+      } catch (error) {
+        content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
+      }
+    });
+  });
+
+  document.getElementById("run-rollback-btn")?.addEventListener("click", async () => {
+    const rollbackId = (document.getElementById("rollback-id-input")?.value || "").trim();
+    if (!rollbackId) {
+      content.innerHTML = `${content.innerHTML}<div class="notice error">Rollback ID requis</div>`;
+      return;
+    }
+
+    const confirmPhrase = window.prompt(`Confirmer le rollback: ROLLBACK ${rollbackId}`, `ROLLBACK ${rollbackId}`) || "";
+    if (!confirmPhrase) {
+      return;
+    }
+
+    try {
+      const result = await apiRollbackActiveRestore(rollbackId, confirmPhrase);
+      await reloadLifecycle(`Rollback: ${result.status}`);
+    } catch (error) {
+      content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
+    }
   });
 }
 

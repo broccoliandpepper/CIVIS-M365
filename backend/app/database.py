@@ -209,10 +209,33 @@ def apply_incident_schema_fixes(db_path: str):
     conn.close()
 
 
+def apply_archive_manifest_schema_fixes(db_path: str):
+    db_file = Path(db_path)
+    if not db_file.exists():
+        return
+
+    conn = sqlite3.connect(str(db_file))
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(archive_manifest)")
+    cols = {row[1] for row in cursor.fetchall()}
+
+    new_cols = [
+        ('sha256_checksum', 'VARCHAR(64)'),
+    ]
+
+    for col_name, col_type in new_cols:
+        if col_name not in cols:
+            cursor.execute(f"ALTER TABLE archive_manifest ADD COLUMN {col_name} {col_type}")
+
+    conn.commit()
+    conn.close()
+
+
 def init_all_databases():
     Base.metadata.create_all(bind=engine_hot)
     Base.metadata.create_all(bind=engine_archive)
     Base.metadata.create_all(bind=engine_config)
+    apply_archive_manifest_schema_fixes(settings.DB_CONFIG_PATH)
     apply_signins_schema_fixes(settings.DB_PATH)
     apply_audit_logs_schema_fixes(settings.DB_PATH)
     apply_risky_users_schema_fixes(settings.DB_PATH)
@@ -225,6 +248,7 @@ def init_db_on_startup():
     Base.metadata.create_all(bind=engine_config)
     Base.metadata.create_all(bind=engine_hot)
     Base.metadata.create_all(bind=engine_archive)
+    apply_archive_manifest_schema_fixes(settings.DB_CONFIG_PATH)
     apply_signins_schema_fixes(settings.DB_PATH)
     apply_audit_logs_schema_fixes(settings.DB_PATH)
     apply_risky_users_schema_fixes(settings.DB_PATH)

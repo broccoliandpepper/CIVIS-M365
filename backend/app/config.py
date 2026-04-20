@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     DB_CONFIG_PATH: str = "./data/db/siem_config.db"
     
     BACKUP_PATH: str = "./data/backups"
+    BACKUP_RETENTION_DAYS: int = 30
+    BACKUP_RETENTION_MAX_FILES: int = 30
+    ROLLBACK_RETENTION_DAYS: int = 14
+    ROLLBACK_RETENTION_MAX_SNAPSHOTS: int = 20
     
     HOST: str = "127.0.0.1"
     PORT: int = 5000
