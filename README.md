@@ -527,6 +527,7 @@ Interface SOC (onglet `SOC Report`) :
 | `/api/v1/lifecycle/backup/{backup_id}/restore/activate` | POST | Restore actif contrôlé de HOT et ARCHIVE |
 | `/api/v1/lifecycle/rollback/{rollback_id}` | POST | Rollback opérateur vers le snapshot pré-restore |
 | `/api/v1/lifecycle/retention/run` | POST | Exécuter manuellement la rotation/rétention |
+| `/api/v1/lifecycle/import` | POST | Importer un fichier .sbk existant dans une nouvelle instance |
 
 ### 6.6.1 Contenu d'un backup chiffré
 
@@ -562,6 +563,57 @@ Le test exécute :
 - restore dry-run
 - restore actif contrôlé
 - rollback opérateur
+
+### 6.6.3 Import d'un backup existant (déploiement nouveau serveur)
+
+**Scénario** : Vous avez un backup `.sbk` d'une ancienne instance et vous voulez le restaurer dans une nouvelle instance vierge.
+
+**Procédure** :
+
+1. **Déployer une nouvelle instance** avec une base de données vierge
+2. **Accéder à l'interface** : `http://127.0.0.1:5000`
+3. **Se connecter** en tant qu'admin
+4. **Aller à l'onglet Lifecycle**
+5. **Dans la section "Import Backup"** :
+   - Cliquer sur "Sélectionner un fichier"
+   - Choisir le fichier `.sbk`
+   - Cliquer sur "Importer"
+6. **Attendre le chargement** (indiqué par "Chargement en cours...")
+7. **Vérifier l'import** : Le backup apparaît dans la liste avec le statut `imported`
+8. **Les données sont maintenant disponibles** :
+   - Tables HOT, ARCHIVE, CONFIG peuplées depuis le backup
+   - Retention automatique activée selon les politiques configurées
+   - Tous les backups disponibles pour inspection/restore
+
+**Via API** (curl) :
+
+```bash
+curl -X POST http://127.0.0.1:5000/api/v1/lifecycle/import \
+  -H "Authorization: Bearer <your_token>" \
+  -F "file=@/path/to/backup_20260411_143000.sbk"
+```
+
+**Réponse succès** :
+
+```json
+{
+  "status": "success",
+  "backup_id": "backup_20260411_143000",
+  "records": 45230,
+  "size_bytes": 3500000,
+  "manifest_id": 42,
+  "encryption_method": "AES-256-GCM",
+  "message": "Backup backup_20260411_143000 importé avec succès (45230 enregistrements)"
+}
+```
+
+**Notes** :
+
+- L'endpoint valide le format `.sbk`, décrypte le fichier et vérifie son intégrité
+- Si l'ID du backup existe déjà, l'import est rejeté (évite les doublons)
+- Le fichier importé est stocké dans `data/backups/archives/`
+- Une entrée `ArchiveManifest` est créée en base pour enregistrer le backup
+- Un log `IMPORT_BACKUP` est ajouté à l'historique des opérations
 
 ### 6.7 SOC
 
