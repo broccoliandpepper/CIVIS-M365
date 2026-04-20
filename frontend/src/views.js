@@ -172,7 +172,7 @@ export function renderLifecycle(data, currentUser = null, message = "") {
             <button class="btn secondary" id="run-rollback-btn">Executer rollback</button>
           </div>
         ` : ""}
-      </div>
+      </article>
       <article class="card">
         <h3>Backups</h3>
         ${tableOrEmpty(["Backup ID", "Created At", "Status", "Records", "Size", "Action"], backupRows, "Aucun backup")}

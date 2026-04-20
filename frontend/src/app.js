@@ -301,7 +301,7 @@ async function wireLifecycle(content) {
       state.user,
       message
     );
-    await bindAppHandlers({ skipRender: true });
+    await wireLifecycle(content);
   };
 
   document.getElementById("refresh-lifecycle-btn")?.addEventListener("click", async () => {
@@ -329,8 +329,16 @@ async function wireLifecycle(content) {
   content.querySelectorAll("[data-inspect-backup]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       try {
-        const inspected = await apiInspectBackup(btn.dataset.inspectBackup);
-        await reloadLifecycle(`Inspection: ${btn.dataset.inspectBackup}`, inspected);
+        const backupId = btn.dataset.inspectBackup;
+        const inspected = await apiInspectBackup(backupId);
+
+        if (inspected?.status !== "success") {
+          await reloadLifecycle(`Inspection ${backupId}: ${inspected?.status || "error"}`, null);
+          return;
+        }
+
+        const entryCount = Number(inspected?.entry_count || 0);
+        await reloadLifecycle(`Inspection: ${backupId} (${entryCount} entrees)`, inspected);
       } catch (error) {
         content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
       }
