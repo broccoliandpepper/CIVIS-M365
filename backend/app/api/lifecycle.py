@@ -1,8 +1,10 @@
 """Endpoints Archive & Lifecycle."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
+from pathlib import Path
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import tempfile
 
 from app.api.auth import get_current_user, require_admin
 from app.database import get_db_config, get_db_hot
@@ -132,3 +134,24 @@ async def run_retention_rotation(
 ):
     """Déclenche manuellement la rotation/rétention des archives et snapshots rollback."""
     return LifecycleService.enforce_retention(db, triggered_by=current_user.username)
+
+
+@router.post("/import")
+async def import_backup_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_config),
+):
+    """Importe un fichier backup .sbk existant et l'enregistre en base."""
+    if not file.filename.endswith(".sbk"):
+        return {"status": "failed", "error": "Le fichier doit être au format .sbk"}
+
+    with tempfile.TemporaryDirectory(prefix="import_") as temp_dir:
+        temp_path = Path(temp_dir) / file.filename
+        with open(temp_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+
+        return LifecycleService.import_backup(
+            db, temp_path, imported_by=current_user.username
+        )

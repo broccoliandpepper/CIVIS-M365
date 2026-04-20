@@ -3,6 +3,7 @@
 import base64
 import json
 import os
+import shutil
 import sqlite3
 import struct
 import tempfile
@@ -595,6 +596,128 @@ class LifecycleService:
                 "retention": retention,
             }
         except Exception as exc:
+            lifecycle_log.status = "failed"
+            lifecycle_log.error_message = str(exc)
+            lifecycle_log.completed_at = datetime.utcnow()
+            db.commit()
+            return {
+                "status": "failed",
+                "error": str(exc),
+            }
+
+    @staticmethod
+    def import_backup(db: Session, uploaded_file_path: Path, imported_by: str = "admin") -> dict:
+        """Importe un backup .sbk existant et l'enregistre en base de données."""
+        lifecycle_log = LifecycleLog(
+            operation="IMPORT_BACKUP",
+            status="started",
+            created_by=imported_by,
+        )
+        db.add(lifecycle_log)
+        db.commit()
+        db.refresh(lifecycle_log)
+
+        try:
+            if not uploaded_file_path.exists():
+                raise ValueError(f"Fichier uploadé non trouvé: {uploaded_file_path}")
+
+            file_size = uploaded_file_path.stat().st_size
+            md5 = LifecycleService._hash_file(uploaded_file_path, "md5")
+            sha256 = LifecycleService._hash_file(uploaded_file_path, "sha256")
+
+            with tempfile.TemporaryDirectory(prefix="import_") as temp_dir_str:
+                temp_dir = Path(temp_dir_str)
+                extract_dir = temp_dir / "extract"
+                extract_dir.mkdir()
+
+                zip_path, container_header = LifecycleService._decrypt_archive(uploaded_file_path, temp_dir)
+
+                if container_header.get("magic") != LifecycleService.CONTAINER_MAGIC:
+                    raise ValueError("Format de conteneur invalide")
+
+                backup_id = container_header.get("backup_id")
+                if not backup_id:
+                    raise ValueError("ID de backup manquant dans le conteneur")
+
+                existing = db.query(ArchiveManifest).filter(
+                    ArchiveManifest.backup_id == backup_id
+                ).first()
+                if existing:
+                    raise ValueError(f"Backup avec cet ID existe déjà: {backup_id}")
+
+                embedded_manifest, missing_files = LifecycleService._verify_embedded_manifest(
+                    zip_path, extract_dir
+                )
+
+                if missing_files:
+                    raise ValueError(f"Fichiers manquants dans l'archive: {', '.join(missing_files)}")
+
+                backup_dir = LifecycleService._resolve_runtime_path(settings.BACKUP_PATH) / "archives"
+                backup_dir.mkdir(parents=True, exist_ok=True)
+
+                destination_path = backup_dir / uploaded_file_path.name
+                if destination_path.exists():
+                    raise ValueError(f"Fichier de destination existe déjà: {destination_path}")
+
+                shutil.move(str(uploaded_file_path), str(destination_path))
+
+                period_from = embedded_manifest.get("period_from")
+                period_to = embedded_manifest.get("period_to")
+                if period_from:
+                    period_from = datetime.fromisoformat(period_from)
+                if period_to:
+                    period_to = datetime.fromisoformat(period_to)
+
+                record_counts = embedded_manifest.get("record_counts", {})
+                total_records = sum(record_counts.values())
+
+                manifest = ArchiveManifest(
+                    backup_id=backup_id,
+                    backup_filename=destination_path.name,
+                    backup_filepath=str(destination_path),
+                    period_from=period_from,
+                    period_to=period_to,
+                    record_count_signins=record_counts.get("signins", 0),
+                    record_count_risky=record_counts.get("risky_users", 0),
+                    record_count_incidents=record_counts.get("incidents", 0),
+                    record_count_audit=record_counts.get("audit_logs", 0),
+                    total_records=total_records,
+                    file_size_bytes=file_size,
+                    md5_checksum=md5,
+                    sha256_checksum=sha256,
+                    is_encrypted=container_header.get("encryption", {}).get("enabled", True),
+                    encryption_method=container_header.get("encryption", {}).get("method", LifecycleService.ENCRYPTION_METHOD),
+                    status="imported",
+                    created_by=imported_by,
+                    notes=json.dumps({
+                        "import_source": "manual_upload",
+                        "format_version": container_header.get("format_version", LifecycleService.BACKUP_FORMAT_VERSION),
+                        "container": container_header,
+                        "embedded_manifest": embedded_manifest,
+                    }),
+                )
+
+                db.add(manifest)
+
+                lifecycle_log.status = "completed"
+                lifecycle_log.records_processed = total_records
+                lifecycle_log.completed_at = datetime.utcnow()
+                db.commit()
+
+                return {
+                    "status": "success",
+                    "backup_id": backup_id,
+                    "records": total_records,
+                    "size_bytes": file_size,
+                    "manifest_id": manifest.id,
+                    "sha256_checksum": sha256,
+                    "encryption_method": manifest.encryption_method,
+                    "message": f"Backup {backup_id} importé avec succès ({total_records} enregistrements)",
+                }
+        except Exception as exc:
+            if uploaded_file_path.exists():
+                uploaded_file_path.unlink()
+
             lifecycle_log.status = "failed"
             lifecycle_log.error_message = str(exc)
             lifecycle_log.completed_at = datetime.utcnow()

@@ -252,6 +252,12 @@ export function apiRunLifecycleRetention() {
   return request("/lifecycle/retention/run", { method: "POST" });
 }
 
+export function apiImportBackup(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request("/lifecycle/import", { method: "POST", body: formData });
+}
+
 export async function apiUpload(endpoint, file) {
   const formData = new FormData();
   formData.append("file", file);

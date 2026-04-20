@@ -403,6 +403,37 @@ async function wireLifecycle(content) {
       content.innerHTML = `${content.innerHTML}<div class="notice error">${error.message}</div>`;
     }
   });
+
+  document.getElementById("import-backup-btn")?.addEventListener("click", async () => {
+    const fileInput = document.getElementById("import-backup-input");
+    const statusDiv = document.getElementById("import-status");
+    
+    if (!fileInput || !fileInput.files.length) {
+      statusDiv.innerHTML = '<div class="notice error">Selectionnez un fichier .sbk</div>';
+      return;
+    }
+
+    const file = fileInput.files[0];
+    if (!file.name.endsWith(".sbk")) {
+      statusDiv.innerHTML = '<div class="notice error">Le fichier doit être au format .sbk</div>';
+      return;
+    }
+
+    try {
+      statusDiv.innerHTML = '<div class="notice">Chargement en cours...</div>';
+      const result = await apiImportBackup(file);
+      
+      if (result.status === "success") {
+        statusDiv.innerHTML = `<div class="notice success">${esc(result.message || "Import réussi")}</div>`;
+        fileInput.value = "";
+        setTimeout(() => reloadLifecycle(`Import: ${result.backup_id}`), 1000);
+      } else {
+        statusDiv.innerHTML = `<div class="notice error">Erreur: ${esc(result.error || "Import échoué")}</div>`;
+      }
+    } catch (error) {
+      statusDiv.innerHTML = `<div class="notice error">Erreur: ${esc(error.message)}</div>`;
+    }
+  });
 }
 
 async function renderContent() {

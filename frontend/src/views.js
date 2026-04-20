@@ -157,6 +157,17 @@ export function renderLifecycle(data, currentUser = null, message = "") {
         <article class="card"><div>Archives .sbk</div><div class="kpi-value">${esc(rotation.backup_archives_count ?? "-")}</div></article>
         <article class="card"><div>Snapshots rollback</div><div class="kpi-value">${esc(rotation.rollback_snapshots_count ?? "-")}</div></article>
       </div>
+      ${canManage ? `
+      <article class="card">
+        <h3>Import Backup</h3>
+        <div class="subtitle">Televersez un fichier .sbk existant pour l'importer dans cette instance</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:flex-end;">
+          <input type="file" class="input" id="import-backup-input" accept=".sbk" style="flex:1;min-width:200px;">
+          <button class="btn secondary" id="import-backup-btn">Importer</button>
+        </div>
+        <div id="import-status" style="margin-top:10px;"></div>
+      </article>
+      ` : ""}
       <article class="card">
         <h3>Politique de retention</h3>
         <div class="subtitle">
