@@ -181,6 +181,9 @@ python scripts/start_siem.py --setup-only
 
 # Port personnalisé
 python scripts/start_siem.py --port 5050
+
+# Eviter un conflit si 5000 est deja occupe
+python scripts/start_siem.py --port 5051
 ```
 
 ### 3.2 Démarrage Automatisé Windows (PowerShell)
@@ -402,6 +405,9 @@ Interface SOC (onglet `SOC Report`) :
 - Vue géographique (top pays + pays hors liste)
 - Export HTML du rapport SOC
 
+Note d'usage :
+- Si les données chargées proviennent d'exports plus anciens, `last_7_days` peut légitimement retourner 0 résultat. Utiliser `last_30_days` ou une plage `custom` alignée sur les dates d'import.
+
 ---
 
 ## 5. Guide d'Utilisation Quotidienne
@@ -418,10 +424,11 @@ Interface SOC (onglet `SOC Report`) :
 | Onglet | Description |
 |-------|-------------|
 | **Dashboard** | KPIs, tendances, export PDF |
-| **Ingestion** | Upload des fichiers JSON/CSV (SignIns, Truth List, Risky Users, Incidents) |
+| **Ingestion** | Upload des fichiers JSON/CSV (SignIns, Truth List, Risky Users, Incidents, Audit Logs) |
 | **SignIns** | Historique des connexions |
 | **Risky Users** | Utilisateurs à risque détectés |
 | **Incidents** | Incidents de sécurité |
+| **Audit Logs** | Journal d'audit M365 avec filtres et pagination |
 | **SOC Report** | Analyse SOC, anomalies, géographie, export HTML |
 | **Truth List** | Liste des utilisateurs autorisés |
 | **Alertes** | Utilisateurs non autorisés détectés |
@@ -431,9 +438,14 @@ Interface SOC (onglet `SOC Report`) :
 ### 5.3 Upload des Données
 
 1. Aller dans l'onglet **Ingestion**
-2. Cliquer sur "Choisir un fichier" pour sélectionner un JSON
-3. Cliquer sur "Téléverser" pour importer
-4. Les données sont dédupliquées automatiquement par event_id/incident_id
+2. Sélectionner le bon type d'import : SignIns, Risky Users, Incidents, Truth List ou Audit Logs
+3. Cliquer sur "Choisir un fichier" pour sélectionner un JSON ou un CSV selon la source
+4. Cliquer sur "Téléverser" pour importer
+5. Les données sont dédupliquées automatiquement par event_id/incident_id ou clés métier équivalentes
+
+Conseils pratiques :
+- Les exports M365 historiques doivent ensuite etre consultés avec une période cohérente dans l'interface, par exemple `last_30_days` ou `custom`.
+- Le répertoire [backend/sample_data/README_SENSITIVE.md](backend/sample_data/README_SENSITIVE.md) documente pourquoi V2 ne distribue pas de jeux de données réels.
 
 ### 5.4 Semaine - Analyse (30 min)
 
@@ -483,6 +495,7 @@ Interface SOC (onglet `SOC Report`) :
 | `/api/v1/ingest/upload/signins` | POST | Upload SignIns |
 | `/api/v1/ingest/upload/risky-users` | POST | Upload Risky Users |
 | `/api/v1/ingest/upload/incidents` | POST | Upload Incidents |
+| `/api/v1/ingest/upload/audit-logs` | POST | Upload Audit Logs |
 | `/api/v1/ingest/upload/truth-list` | POST | Upload Truth List |
 
 ### 6.3 Requêtes
@@ -492,6 +505,7 @@ Interface SOC (onglet `SOC Report`) :
 | `/api/v1/query/signins` | GET | Rechercher SignIns |
 | `/api/v1/query/risky-users` | GET | Rechercher Risky Users |
 | `/api/v1/query/incidents` | GET | Rechercher Incidents |
+| `/api/v1/query/audit-logs` | GET | Rechercher Audit Logs M365 |
 | `/api/v1/query/truth-list` | GET | Rechercher Truth List |
 | `/api/v1/dashboard/kpis` | GET | KPIs dashboard |
 | `/api/v1/dashboard/trends` | GET | Tendances |
@@ -650,8 +664,15 @@ Les cartes KPI ci-dessous supportent `Voir details` et affichent une table filtr
 1. Vérifier le format JSON (valide)
 2. Vérifier la taille (< 50MB)
 3. Vérifier les champs requis
+4. Vérifier que le type d'import choisi correspond bien au fichier envoyé
 
-### 7.3 Performance lente
+### 7.3 Le serveur ne démarre pas sur le port 5000
+
+1. Vérifier si une autre instance tourne déjà sur `http://127.0.0.1:5000`
+2. Relancer avec un autre port, par exemple `python scripts/start_siem.py --port 5051`
+3. Mettre à jour l'URL d'accès dans le navigateur en conséquence
+
+### 7.4 Performance lente
 
 - Réduire la période de dates dans les filtres
 - Utiliser la pagination
@@ -680,14 +701,11 @@ Les cartes KPI ci-dessous supportent `Voir details` et affichent une table filtr
 
 ### Fichiers de données sample
 
-Le projet inclut des fichiers sample pour tester :
+V2 ne fournit pas de jeux de données réels dans le dépôt.
 
-| Fichier | Description | Records |
-|---------|-------------|----------|
-| `signins_100.json` | 100 connexions | 100 |
-| `risky_users_50.json` | 50 utilisateurs à risque | 50 |
-| `incidents_30.json` | 30 incidents | 30 |
-| `truth_list_100.json` | 100 utilisateurs autorisés | 100 |
+- Le répertoire [backend/sample_data/README_SENSITIVE.md](backend/sample_data/README_SENSITIVE.md) explique cette contrainte.
+- N'ajouter ici que des fichiers synthétiques ou anonymisés.
+- Pour des validations fonctionnelles, charger vos propres exports M365 ou des jeux de test assainis.
 
 ---
 
