@@ -1,10 +1,16 @@
+import os
+
 import requests
-import json
 
 BASE = "http://127.0.0.1:5000/api/v1"
+USERNAME = os.getenv("SIEM_TEST_USERNAME", "admin")
+PASSWORD = os.getenv("SIEM_TEST_PASSWORD", "Admin@SIEM2024!")
 
 # Login
-r = requests.post(f"{BASE}/auth/login", json={"username": "admin", "password": "AdminPassword123!"})
+r = requests.post(
+    f"{BASE}/auth/login",
+    data={"username": USERNAME, "password": PASSWORD},
+)
 if r.status_code != 200:
     print(f"Login failed: {r.text}")
     exit(1)

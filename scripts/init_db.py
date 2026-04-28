@@ -7,10 +7,13 @@ import sys
 from pathlib import Path
 import os
 
-# Change to script directory
-os.chdir(Path(__file__).parent.parent / "backend")
+# Resolve project paths once and keep the process rooted at the repository level.
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+BACKEND_ROOT = PROJECT_ROOT / "backend"
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+os.chdir(PROJECT_ROOT)
+
+sys.path.insert(0, str(BACKEND_ROOT))
 sys.stdout.flush()
 sys.stderr.flush()
 
@@ -58,7 +61,7 @@ def main():
     print("SIEM M365 - Database Initialization")
     print("=" * 50)
     
-    env_path = Path(__file__).parent.parent / "backend" / ".env"
+    env_path = BACKEND_ROOT / ".env"
     if not env_path.exists():
         print(".env file not found!")
         sys.exit(1)
