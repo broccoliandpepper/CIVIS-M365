@@ -34,6 +34,12 @@ async def upload_audit_logs(
     
     content = await file.read()
     logger.info(f"File {file.filename} size={len(content)} bytes")
+    
+    # Validate file is not empty
+    if not content or len(content) == 0:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Empty file uploaded")
+    
     file_hash = IngestionService.calculate_file_hash(content)
     
     ingestion_log = IngestionService.create_ingestion_log(

@@ -187,6 +187,11 @@ async def upload_signins(
 ):
     """Upload de fichier SignIns (JSON)"""
     content = await file.read()
+    
+    # Validate file is not empty
+    if not content or len(content) == 0:
+        raise HTTPException(status_code=400, detail="Empty file uploaded")
+    
     file_hash = IngestionService.calculate_file_hash(content)
     file_size = len(content)
     
@@ -331,6 +336,11 @@ async def upload_risky_users(
 ):
     """Upload de fichier Risky Users (JSON)"""
     content = await file.read()
+    
+    # Validate file is not empty
+    if not content or len(content) == 0:
+        raise HTTPException(status_code=400, detail="Empty file uploaded")
+    
     file_hash = IngestionService.calculate_file_hash(content)
     
     ingestion_log = IngestionService.create_ingestion_log(
@@ -455,6 +465,11 @@ async def upload_incidents(
 ):
     """Upload de fichier Incidents (JSON ou CSV)"""
     content = await file.read()
+    
+    # Validate file is not empty
+    if not content or len(content) == 0:
+        raise HTTPException(status_code=400, detail="Empty file uploaded")
+    
     file_hash = IngestionService.calculate_file_hash(content)
     
     ingestion_log = IngestionService.create_ingestion_log(
@@ -537,6 +552,11 @@ async def upload_truth_list(
 ):
     """Upload de fichier Truth List (JSON ou CSV exportUsers)"""
     content = await file.read()
+    
+    # Validate file is not empty
+    if not content or len(content) == 0:
+        raise HTTPException(status_code=400, detail="Empty file uploaded")
+    
     file_hash = IngestionService.calculate_file_hash(content)
     
     ingestion_log = IngestionService.create_ingestion_log(
