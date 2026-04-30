@@ -234,7 +234,76 @@ Détails techniques :
 - Log runtime : `logs/SIEM-M365.log`
 - Le script `start_siem_service.ps1` exécute d'abord la phase setup (`start_siem.ps1 -SetupOnly`) puis lance uvicorn dans une boucle de supervision.
 
-### 3.4 Démarrage de l'API
+### 3.4 Vrai service Windows (Services.msc)
+
+Pour installer le SIEM comme vrai service Windows, visible dans `Services.msc` et indépendant d'une console utilisateur, utiliser les scripts WinSW fournis.
+
+Prérequis :
+- lancer PowerShell en tant qu'administrateur,
+- autoriser le téléchargement du wrapper WinSW depuis GitHub,
+- conserver le répertoire du projet à un emplacement stable.
+
+Implémentation validée :
+- wrapper WinSW stable `v2.12.0`,
+- nom de service par défaut : `SIEM-M365`,
+- type de démarrage : `Automatic`,
+- endpoint de contrôle validé : `http://127.0.0.1:5000/health`.
+
+Installation :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install_siem_windows_service.ps1 -StartAfterInstall
+```
+
+Options utiles :
+
+```powershell
+# Port personnalisé
+powershell -ExecutionPolicy Bypass -File .\scripts\install_siem_windows_service.ps1 -Port 5050 -StartAfterInstall
+
+# Nom de service personnalisé
+powershell -ExecutionPolicy Bypass -File .\scripts\install_siem_windows_service.ps1 -ServiceName "SIEM-M365-PROD" -DisplayName "SIEM M365 PROD" -StartAfterInstall
+```
+
+Désinstallation :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\uninstall_siem_windows_service.ps1
+```
+
+Exploitation courante :
+
+```powershell
+# Vérifier le statut
+Get-Service -Name SIEM-M365
+
+# Démarrer le service
+Start-Service -Name SIEM-M365
+
+# Arrêter le service
+Stop-Service -Name SIEM-M365
+
+# Vérifier l'API
+Invoke-WebRequest http://127.0.0.1:5000/health
+```
+
+Détails techniques :
+- wrapper téléchargé dans `.runtime/windows-service/`,
+- logs du service dans `logs/windows-service/`,
+- exécution réelle via [scripts/run_siem_windows_service.ps1](scripts/run_siem_windows_service.ps1),
+- redémarrage automatique géré par WinSW après crash du processus.
+
+Logs utiles :
+- `logs/windows-service/SIEM-M365.wrapper.log`
+- `logs/windows-service/SIEM-M365.out.log`
+- `logs/windows-service/SIEM-M365.err.log`
+
+Pièges connus :
+- si une ancienne instance `uvicorn` ou `python -m uvicorn` occupe déjà le port `5000`, le service peut être installé mais échouer au démarrage avec `error while attempting to bind on address` ; il faut alors arrêter l'ancienne instance puis redémarrer le service,
+- l'installation doit être lancée depuis une PowerShell élevée, sinon l'enregistrement du service dans Windows échoue,
+- le répertoire du projet ne doit pas être déplacé après installation sans réinstaller le service.
+
+### 3.5 Démarrage de l'API
 
 ```bash
 cd backend
@@ -243,7 +312,7 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 5000 --reload
 
 L'API est accessible à : `http://127.0.0.1:5000`
 
-### 3.5 Page de connexion
+### 3.6 Page de connexion
 
 Ouvrir un navigateur : `http://127.0.0.1:5000`
 
@@ -253,7 +322,7 @@ Ouvrir un navigateur : `http://127.0.0.1:5000`
 
 ⚠️ **IMPORTANT** : Changer immediatement le mot de passe admin !
 
-### 3.6 Créer un utilisateur
+### 3.7 Créer un utilisateur
 
 1. Se connecter en tant qu'admin
 2. Aller dans Settings > Users
@@ -261,7 +330,7 @@ Ouvrir un navigateur : `http://127.0.0.1:5000`
 4. Remplir le formulaire
 5. Choisir le rôle (Admin ou Viewer)
 
-### 3.7 Frontend Modulaire V2
+### 3.8 Frontend Modulaire V2
 
 Le frontend est maintenant découpé en modules servis par FastAPI :
 

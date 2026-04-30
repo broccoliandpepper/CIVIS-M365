@@ -29,28 +29,38 @@ function Find-CompatiblePython {
     # Try py launcher with preferred versions in order
     if (Test-CommandExists "py") {
         foreach ($ver in @("3.12", "3.11", "3.13")) {
-            $null = & py "-$ver" -c "import sys" 2>&1
-            if ($LASTEXITCODE -eq 0) {
-                Write-Ok "Found Python $ver via py launcher"
-                return @{ Exe = "py"; Args = @("-$ver"); Version = $ver }
+            try {
+                & py "-$ver" -c "import sys" *> $null
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Ok "Found Python $ver via py launcher"
+                    return @{ Exe = "py"; Args = @("-$ver"); Version = $ver }
+                }
+            }
+            catch {
+                continue
             }
         }
     }
 
     # Fallback: check 'python' command version
     if (Test-CommandExists "python") {
-        $verInfo = & python -c "import sys; print(sys.version_info.major, sys.version_info.minor)" 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            $parts = $verInfo.Trim().Split(' ')
-            $major = [int]$parts[0]; $minor = [int]$parts[1]
-            if ($major -eq 3 -and $minor -le 13) {
-                Write-Ok "Found system Python $major.$minor"
+        try {
+            $verInfo = & python -c "import sys; print(sys.version_info.major, sys.version_info.minor)" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $parts = $verInfo.Trim().Split(' ')
+                $major = [int]$parts[0]; $minor = [int]$parts[1]
+                if ($major -eq 3 -and $minor -le 13) {
+                    Write-Ok "Found system Python $major.$minor"
+                    return @{ Exe = "python"; Args = @(); Version = "$major.$minor" }
+                }
+                # 3.14+: warn but allow continuation; script will try anyway
+                Write-WarnMsg "System Python is $major.$minor. Some packages lack pre-built wheels for this version."
+                Write-WarnMsg "Install Python 3.12 to avoid compilation errors: winget install Python.Python.3.12"
                 return @{ Exe = "python"; Args = @(); Version = "$major.$minor" }
             }
-            # 3.14+: warn but allow continuation; script will try anyway
-            Write-WarnMsg "System Python is $major.$minor. Some packages lack pre-built wheels for this version."
-            Write-WarnMsg "Install Python 3.12 to avoid compilation errors: winget install Python.Python.3.12"
-            return @{ Exe = "python"; Args = @(); Version = "$major.$minor" }
+        }
+        catch {
+            Write-WarnMsg "System Python command exists but could not be queried."
         }
     }
 
