@@ -3,6 +3,7 @@ Configuration centrale de l'application SIEM M365
 """
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -48,11 +49,37 @@ class Settings(BaseSettings):
         return self.APP_ENV == "production"
 
     @property
+    def backend_root(self) -> Path:
+        return Path(__file__).resolve().parents[1]
+
+    def resolve_backend_path(self, path_value: str) -> str:
+        candidate = Path(path_value).expanduser()
+        if candidate.is_absolute():
+            return str(candidate.resolve())
+        return str((self.backend_root / candidate).resolve())
+
+    @property
+    def db_path_resolved(self) -> str:
+        return self.resolve_backend_path(self.DB_PATH)
+
+    @property
+    def db_archive_path_resolved(self) -> str:
+        return self.resolve_backend_path(self.DB_ARCHIVE_PATH)
+
+    @property
+    def db_config_path_resolved(self) -> str:
+        return self.resolve_backend_path(self.DB_CONFIG_PATH)
+
+    @property
+    def backup_path_resolved(self) -> str:
+        return self.resolve_backend_path(self.BACKUP_PATH)
+
+    @property
     def db_paths(self) -> dict:
         return {
-            "hot": self.DB_PATH,
-            "archive": self.DB_ARCHIVE_PATH,
-            "config": self.DB_CONFIG_PATH
+            "hot": self.db_path_resolved,
+            "archive": self.db_archive_path_resolved,
+            "config": self.db_config_path_resolved,
         }
 
     @property

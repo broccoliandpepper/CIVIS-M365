@@ -6,9 +6,7 @@ from app.config import settings
 
 
 def fix_schema():
-    db_path = Path(settings.DB_PATH)
-    if not db_path.exists():
-        db_path = Path(__file__).parent / settings.DB_PATH
+    db_path = Path(settings.db_path_resolved)
     if not db_path.exists():
         print("Database not found at configured DB_PATH")
         return

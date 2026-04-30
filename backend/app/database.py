@@ -33,13 +33,13 @@ def get_db_engine(db_path: str):
     return engine
 
 
-engine_hot = get_db_engine(settings.DB_PATH)
+engine_hot = get_db_engine(settings.db_path_resolved)
 SessionLocal_hot = sessionmaker(autocommit=False, autoflush=False, bind=engine_hot)
 
-engine_archive = get_db_engine(settings.DB_ARCHIVE_PATH)
+engine_archive = get_db_engine(settings.db_archive_path_resolved)
 SessionLocal_archive = sessionmaker(autocommit=False, autoflush=False, bind=engine_archive)
 
-engine_config = get_db_engine(settings.DB_CONFIG_PATH)
+engine_config = get_db_engine(settings.db_config_path_resolved)
 SessionLocal_config = sessionmaker(autocommit=False, autoflush=False, bind=engine_config)
 
 
@@ -235,11 +235,11 @@ def init_all_databases():
     Base.metadata.create_all(bind=engine_hot)
     Base.metadata.create_all(bind=engine_archive)
     Base.metadata.create_all(bind=engine_config)
-    apply_archive_manifest_schema_fixes(settings.DB_CONFIG_PATH)
-    apply_signins_schema_fixes(settings.DB_PATH)
-    apply_audit_logs_schema_fixes(settings.DB_PATH)
-    apply_risky_users_schema_fixes(settings.DB_PATH)
-    apply_incident_schema_fixes(settings.DB_PATH)
+    apply_archive_manifest_schema_fixes(settings.db_config_path_resolved)
+    apply_signins_schema_fixes(settings.db_path_resolved)
+    apply_audit_logs_schema_fixes(settings.db_path_resolved)
+    apply_risky_users_schema_fixes(settings.db_path_resolved)
+    apply_incident_schema_fixes(settings.db_path_resolved)
     print("Databases initialisees avec succes")
 
 
@@ -248,8 +248,8 @@ def init_db_on_startup():
     Base.metadata.create_all(bind=engine_config)
     Base.metadata.create_all(bind=engine_hot)
     Base.metadata.create_all(bind=engine_archive)
-    apply_archive_manifest_schema_fixes(settings.DB_CONFIG_PATH)
-    apply_signins_schema_fixes(settings.DB_PATH)
-    apply_audit_logs_schema_fixes(settings.DB_PATH)
-    apply_risky_users_schema_fixes(settings.DB_PATH)
-    apply_incident_schema_fixes(settings.DB_PATH)
+    apply_archive_manifest_schema_fixes(settings.db_config_path_resolved)
+    apply_signins_schema_fixes(settings.db_path_resolved)
+    apply_audit_logs_schema_fixes(settings.db_path_resolved)
+    apply_risky_users_schema_fixes(settings.db_path_resolved)
+    apply_incident_schema_fixes(settings.db_path_resolved)
