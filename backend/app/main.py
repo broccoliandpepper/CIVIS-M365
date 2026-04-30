@@ -2,19 +2,24 @@
 SIEM M365 - FastAPI Application
 """
 
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 
 from app.config import settings
 from app.api import auth, ingest, alerts, query, export, dashboard, lifecycle, soc
 from app.api.ingest_clear import router as ingest_clear_router
 from app.api.ingest_audit import router as ingest_audit_router
-from app.database import init_db_on_startup, engine_hot
+from app.database import init_db_on_startup, engine_hot, engine_archive, engine_config
 from app.middleware.security_headers import SecurityHeadersMiddleware
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -60,9 +65,6 @@ app.include_router(ingest_clear_router)
 app.include_router(ingest_audit_router)
 
 
-from fastapi.responses import FileResponse, JSONResponse
-
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_INDEX = PROJECT_ROOT / "frontend" / "index.html"
 
@@ -72,13 +74,59 @@ app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "frontend")), name
 async def root():
     try:
         return FileResponse(str(FRONTEND_INDEX))
-    except:
+    except Exception as e:
+        logger.warning(f"Failed to serve frontend index: {e}")
         return JSONResponse({"message": "SIEM M365 API", "version": "1.0.0"})
+
+
 
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy"}
+    """Health check endpoint that verifies all databases are accessible.
+    
+    Returns:
+    - healthy: All databases responding (status 200)
+    - degraded: One or more databases not responding (status 200 but degraded=true)
+    - unhealthy: Critical database not responding (status 503)
+    """
+    from sqlalchemy import text
+    
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "databases": {}
+    }
+    
+    # Check each database with a short timeout
+    db_checks = [
+        ("hot", engine_hot, True),  # required
+        ("archive", engine_archive, True),  # required
+        ("config", engine_config, True),  # required
+    ]
+    
+    all_healthy = True
+    any_critical_down = False
+    
+    for db_name, engine, is_critical in db_checks:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                health_status["databases"][db_name] = {"status": "ok"}
+        except Exception as e:
+            logger.warning(f"Database {db_name} health check failed: {e}")
+            health_status["databases"][db_name] = {"status": "error", "error": str(e)}
+            all_healthy = False
+            if is_critical:
+                any_critical_down = True
+    
+    if any_critical_down:
+        health_status["status"] = "unhealthy"
+        return health_status, 503
+    elif not all_healthy:
+        health_status["status"] = "degraded"
+    
+    return health_status
 
 
 if __name__ == "__main__":
