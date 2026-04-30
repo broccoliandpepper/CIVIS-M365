@@ -302,10 +302,6 @@ class IngestionService:
         """Ingère les Audit Logs M365"""
         from app.models.audit_logs_m365 import M365AuditLog
         
-        if not logger.handlers:
-            logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s', 
-                            handlers=[logging.FileHandler('debug_audit.log')])
-        
         logger.info(f"=== INGEST_AUDIT_LOGS START: {len(records)} records ===")
         
         added = 0

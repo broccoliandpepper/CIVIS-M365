@@ -25,6 +25,7 @@ Thumbs.db
 logs/
 *.log
 backend/debug_direct.txt
+backend/debug_audit.log
 
 # Local test and scratch scripts
 test_*.py

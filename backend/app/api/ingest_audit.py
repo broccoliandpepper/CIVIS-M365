@@ -30,12 +30,10 @@ async def upload_audit_logs(
     db_config: Session = Depends(get_db_config)
 ):
     """Upload de fichier Audit Logs M365 (JSON)"""
-    with open('debug_direct.txt', 'a') as f:
-        f.write(f"=== START upload_audit_logs ===\n")
+    logger.info(f"Starting upload_audit_logs for {file.filename}")
     
     content = await file.read()
-    with open('debug_direct.txt', 'a') as f:
-        f.write(f"File: {file.filename} size={len(content)}\n")
+    logger.info(f"File {file.filename} size={len(content)} bytes")
     file_hash = IngestionService.calculate_file_hash(content)
     
     ingestion_log = IngestionService.create_ingestion_log(
