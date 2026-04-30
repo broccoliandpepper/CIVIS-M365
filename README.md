@@ -316,11 +316,11 @@ L'API est accessible à : `http://127.0.0.1:5000`
 
 Ouvrir un navigateur : `http://127.0.0.1:5000`
 
-**Identifiants par défaut** :
+**Identifiants initiaux** :
 - Username : `admin`
-- Password : `Admin@SIEM2024!`
+- Password : valeur `INITIAL_ADMIN_PASSWORD` dans `backend/.env`
 
-⚠️ **IMPORTANT** : Changer immediatement le mot de passe admin !
+⚠️ **IMPORTANT** : Changer immediatement le mot de passe admin et remplacer les secrets générés avant tout usage hors local.
 
 ### 3.7 Créer un utilisateur
 

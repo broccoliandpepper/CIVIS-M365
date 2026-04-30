@@ -19,6 +19,34 @@ function Write-Ok($Message) {
     Write-Host "[OK]   $Message" -ForegroundColor Green
 }
 
+function New-RandomSecret {
+    return [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
+        .Replace('+', '-')
+        .Replace('/', '_')
+}
+
+function New-InitialAdminPassword {
+    $special = '!@#$%^*_+-='
+    $lower = 'abcdefghijklmnopqrstuvwxyz'
+    $upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    $digits = '0123456789'
+    $alphabet = ($lower + $upper + $digits + $special).ToCharArray()
+
+    do {
+        $chars = for ($i = 0; $i -lt 20; $i++) {
+            $alphabet[(Get-Random -Minimum 0 -Maximum $alphabet.Length)]
+        }
+        $password = -join $chars
+    } while (
+        -not ($password.ToCharArray() | Where-Object { $lower.Contains($_) }) -or
+        -not ($password.ToCharArray() | Where-Object { $upper.Contains($_) }) -or
+        -not ($password.ToCharArray() | Where-Object { $digits.Contains($_) }) -or
+        -not ($password.ToCharArray() | Where-Object { $special.Contains($_) })
+    )
+
+    return $password
+}
+
 function Test-CommandExists($Name) {
     return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
@@ -162,21 +190,24 @@ if (-not (Test-Path $EnvPath)) {
 APP_NAME=SIEM_M365
 APP_ENV=development
 DEBUG=False
-DB_ENCRYPTION_KEY=siem-m365-secure-32byte-key!!
-JWT_SECRET_KEY=siem-m365-jwt-secret-key-2024!
+DB_ENCRYPTION_KEY=$(New-RandomSecret)
+JWT_SECRET_KEY=$(New-RandomSecret)
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=30
-BACKUP_ENCRYPTION_KEY=siem-m365-backup-32byte-key!!
+BACKUP_ENCRYPTION_KEY=$(New-RandomSecret)
+INITIAL_ADMIN_PASSWORD=$(New-InitialAdminPassword)
 DB_PATH=./data/db/siem_hot.db
 DB_ARCHIVE_PATH=./data/db/siem_archive.db
 DB_CONFIG_PATH=./data/db/siem_config.db
 BACKUP_PATH=./data/backups
 HOST=127.0.0.1
 PORT=5000
+CORS_ALLOWED_ORIGINS=http://127.0.0.1:5000,http://localhost:5000
 PASSWORD_MIN_LENGTH=12
 PASSWORD_REQUIRE_SPECIAL=True
 "@ | Set-Content -Path $EnvPath -Encoding UTF8
     Write-Ok "Default .env created"
+    Write-Info "Generated fresh secrets and INITIAL_ADMIN_PASSWORD in backend/.env"
 }
 else {
     Write-Ok ".env already exists"

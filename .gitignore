@@ -26,6 +26,12 @@ logs/
 *.log
 backend/debug_direct.txt
 
+# Local test and scratch scripts
+test_*.py
+scripts/test*.py
+backend/test*.py
+backend/*test*.py
+
 # Databases and generated backups
 *.db
 data/db/

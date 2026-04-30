@@ -9,28 +9,54 @@ from __future__ import annotations
 
 import argparse
 import os
+import secrets
+import string
 import subprocess
 import sys
 from pathlib import Path
 
 
-DEFAULT_ENV = """APP_NAME=SIEM_M365
-APP_ENV=development
-DEBUG=False
-DB_ENCRYPTION_KEY=siem-m365-secure-32byte-key!!
-JWT_SECRET_KEY=siem-m365-jwt-secret-key-2024!
-JWT_ALGORITHM=HS256
-JWT_EXPIRE_MINUTES=30
-BACKUP_ENCRYPTION_KEY=siem-m365-backup-32byte-key!!
-DB_PATH=./data/db/siem_hot.db
-DB_ARCHIVE_PATH=./data/db/siem_archive.db
-DB_CONFIG_PATH=./data/db/siem_config.db
-BACKUP_PATH=./data/backups
-HOST=127.0.0.1
-PORT=5000
-PASSWORD_MIN_LENGTH=12
-PASSWORD_REQUIRE_SPECIAL=True
-"""
+SPECIAL_CHARS = "!@#$%^*_+-="
+
+
+def generate_secret() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def generate_initial_password(length: int = 20) -> str:
+    alphabet = string.ascii_letters + string.digits + SPECIAL_CHARS
+    while True:
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
+        if (
+            any(char.islower() for char in password)
+            and any(char.isupper() for char in password)
+            and any(char.isdigit() for char in password)
+            and any(char in SPECIAL_CHARS for char in password)
+        ):
+            return password
+
+
+def build_default_env() -> str:
+    return (
+        "APP_NAME=SIEM_M365\n"
+        "APP_ENV=development\n"
+        "DEBUG=False\n"
+        f"DB_ENCRYPTION_KEY={generate_secret()}\n"
+        f"JWT_SECRET_KEY={generate_secret()}\n"
+        "JWT_ALGORITHM=HS256\n"
+        "JWT_EXPIRE_MINUTES=30\n"
+        f"BACKUP_ENCRYPTION_KEY={generate_secret()}\n"
+        f"INITIAL_ADMIN_PASSWORD={generate_initial_password()}\n"
+        "DB_PATH=./data/db/siem_hot.db\n"
+        "DB_ARCHIVE_PATH=./data/db/siem_archive.db\n"
+        "DB_CONFIG_PATH=./data/db/siem_config.db\n"
+        "BACKUP_PATH=./data/backups\n"
+        "HOST=127.0.0.1\n"
+        "PORT=5000\n"
+        "CORS_ALLOWED_ORIGINS=http://127.0.0.1:5000,http://localhost:5000\n"
+        "PASSWORD_MIN_LENGTH=12\n"
+        "PASSWORD_REQUIRE_SPECIAL=True\n"
+    )
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -46,8 +72,9 @@ def get_venv_python(venv_path: Path) -> Path:
 def ensure_env_file(env_path: Path) -> None:
     if env_path.exists():
         return
-    env_path.write_text(DEFAULT_ENV, encoding="utf-8")
+    env_path.write_text(build_default_env(), encoding="utf-8")
     print(f"[OK] Created default env file: {env_path}")
+    print("[INFO] Generated fresh secrets and INITIAL_ADMIN_PASSWORD in backend/.env")
 
 
 def main() -> int:
