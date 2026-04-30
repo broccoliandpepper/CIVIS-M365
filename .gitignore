@@ -27,11 +27,12 @@ logs/
 backend/debug_direct.txt
 backend/debug_audit.log
 
-# Local test and scratch scripts
+# Local test and scratch scripts (but allow official tests)
 test_*.py
 scripts/test*.py
 backend/test*.py
 backend/*test*.py
+!backend/tests/test_*.py
 
 # Databases and generated backups
 *.db
