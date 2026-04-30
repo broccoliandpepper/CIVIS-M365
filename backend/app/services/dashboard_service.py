@@ -2,6 +2,7 @@
 Service pour Dashboard Direction avec KPIs et Tendances
 """
 
+import logging
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -33,7 +34,8 @@ class DashboardService:
         
         try:
             total_signins = db.query(SignIn).filter(SignIn.timestamp >= since).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query total_signins: {e}")
             total_signins = 0
         
         try:
@@ -41,33 +43,38 @@ class DashboardService:
                 SignIn.timestamp >= since,
                 SignIn.status == "failure"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query failed_signins: {e}")
             failed_signins = 0
         
         try:
             unique_users = db.query(func.count(func.distinct(SignIn.user_principal))).scalar() or 0
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query unique_users: {e}")
             unique_users = 0
         
         try:
             risky_users = db.query(RiskyUser).filter(
                 RiskyUser.timestamp >= since
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query risky_users: {e}")
             risky_users = 0
         
         try:
             open_incidents = db.query(Incident).filter(
                 Incident.status.in_(["new", "active"])
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query open_incidents: {e}")
             open_incidents = 0
         
         try:
             critical_ops = db.query(M365AuditLog).filter(
                 M365AuditLog.timestamp >= since
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query critical_ops: {e}")
             critical_ops = 0
 
         try:
@@ -76,7 +83,8 @@ class DashboardService:
                 RiskyUser.risk_level == "high",
                 RiskyUser.risk_state != "confirmedSafe"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query critical_alerts: {e}")
             critical_alerts = 0
 
         try:
@@ -85,7 +93,8 @@ class DashboardService:
                 SignIn.location_country.isnot(None),
                 ~func.upper(SignIn.location_country).in_(ALLOWED_COUNTRIES)
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query external_ip_signins: {e}")
             external_ip_signins = 0
 
         try:
@@ -93,14 +102,16 @@ class DashboardService:
                 SignIn.timestamp >= since,
                 SignIn.status == "failure"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query blocked_attempts: {e}")
             blocked_attempts = 0
 
         try:
             total_incidents = db.query(Incident).filter(
                 Incident.timestamp >= since
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query total_incidents: {e}")
             total_incidents = 0
 
         try:
@@ -108,14 +119,16 @@ class DashboardService:
                 Incident.timestamp >= since,
                 Incident.status == "closed"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query closed_incidents: {e}")
             closed_incidents = 0
 
         try:
             pending_alerts = db.query(NewUserReview).filter(
                 NewUserReview.status == "pending"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query pending_alerts: {e}")
             pending_alerts = 0
 
         try:
@@ -124,7 +137,8 @@ class DashboardService:
                 SignIn.location_country.isnot(None),
                 ~func.upper(SignIn.location_country).in_(ALLOWED_COUNTRIES)
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query out_of_country_signins: {e}")
             out_of_country_signins = 0
 
         try:
@@ -132,21 +146,24 @@ class DashboardService:
                 Incident.status.in_(["new", "active"]),
                 Incident.severity.in_(["high", "critical"])
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query active_threats: {e}")
             active_threats = 0
 
         try:
             dashboard_pending_alerts = db.query(RiskyUser).filter(
                 RiskyUser.risk_state.in_(["atRisk", "dismissed"])
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query dashboard_pending_alerts: {e}")
             dashboard_pending_alerts = 0
 
         try:
             users_at_risk = db.query(RiskyUser).filter(
                 RiskyUser.risk_state != "confirmedSafe"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query users_at_risk: {e}")
             users_at_risk = 0
 
         try:
@@ -154,7 +171,8 @@ class DashboardService:
                 SOCAnomaly.timestamp >= since,
                 SOCAnomaly.status.in_(["open", "investigating"])
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query soc_open_queue: {e}")
             soc_open_queue = 0
 
         try:
@@ -163,7 +181,8 @@ class DashboardService:
                 SOCAnomaly.event_type == "atypical-hours",
                 SOCAnomaly.status != "dismissed"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query atypical_hours: {e}")
             atypical_hours = 0
         
         success_rate = round((total_signins - failed_signins) / total_signins * 100, 1) if total_signins > 0 else 100

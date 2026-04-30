@@ -2,6 +2,7 @@
 Service de requêtes avec pagination
 """
 
+import logging
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, func
@@ -11,6 +12,8 @@ from app.models.signins import SignIn
 from app.models.risky_users import RiskyUser
 from app.models.incidents import Incident
 from app.models.audit_logs_m365 import M365AuditLog, CriticalOperations
+
+logger = logging.getLogger(__name__)
 
 
 class QueryService:
@@ -117,8 +120,8 @@ class QueryService:
             if filters.get('user_principal') and filters['user_principal']:
                 try:
                     query = query.filter(M365AuditLog.user_id.ilike(f"%{filters['user_principal']}%"))
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to filter by user_principal: {e}")
             if filters.get('operation') and filters['operation']:
                 query = query.filter(M365AuditLog.operation == filters['operation'])
             if filters.get('category') and filters['category']:
@@ -126,8 +129,8 @@ class QueryService:
             if filters.get('is_critical'):
                 try:
                     query = query.filter(M365AuditLog.operation.in_(CriticalOperations.CRITICAL_LIST))
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to filter by critical operations: {e}")
             
             total = query.count()
             offset = (page - 1) * page_size
@@ -146,7 +149,8 @@ class QueryService:
         
         try:
             total_signins = db.query(SignIn).filter(SignIn.timestamp >= since).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query total_signins: {e}")
             total_signins = 0
         
         try:
@@ -154,7 +158,8 @@ class QueryService:
                 SignIn.timestamp >= since, 
                 SignIn.status == "failure"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query failed_signins: {e}")
             failed_signins = 0
         
         try:
@@ -162,21 +167,24 @@ class QueryService:
                 RiskyUser.timestamp >= since,
                 RiskyUser.risk_state != "confirmedSafe"
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query total_risky: {e}")
             total_risky = 0
         
         try:
             open_incidents = db.query(Incident).filter(
                 Incident.status.in_(["new", "active"])
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query open_incidents: {e}")
             open_incidents = 0
         
         try:
             critical_ops = db.query(M365AuditLog).filter(
                 M365AuditLog.timestamp >= since
             ).count()
-        except:
+        except Exception as e:
+            logger.error(f"Failed to query critical_ops: {e}")
             critical_ops = 0
         
         return {
