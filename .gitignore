@@ -34,6 +34,9 @@ backend/test*.py
 backend/*test*.py
 !backend/tests/test_*.py
 
+# Ignore all test files and folders in project root
+/tests/
+
 # Databases and generated backups
 *.db
 data/db/
